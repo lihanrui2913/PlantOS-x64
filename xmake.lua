@@ -11,14 +11,13 @@ set_policy("build.optimization.lto", true)
 target("kernel")
     set_kind("binary")
     set_languages("c23")
-    set_toolchains("clang")
+    set_toolchains("gcc")
     set_default(false)
 
     add_includedirs("include")
     add_files("src/**.c")
 
-    add_cflags("-m64", "-mno-red-zone", {force = true})
-    add_cflags("-mno-80387", "-mno-mmx", "-mno-sse", "-mno-sse2", {force = true})
+    add_cflags("-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-mno-red-zone", {force = true})
     add_ldflags("-nostdlib", "-static", "-T", "assets/linker.ld", {force = true})
 
 target("iso")
@@ -35,7 +34,7 @@ target("iso")
         local target = project.target("kernel")
         os.cp(target:targetfile(), iso_dir .. "/kernel.elf")
 
-        local iso_file = "$(buildir)/ExampleOS.iso"
+        local iso_file = "$(buildir)/PlantOS.iso"
         os.run("xorriso -as mkisofs --efi-boot limine/limine-uefi-cd.bin %s -o %s", iso_dir, iso_file)
         print("ISO image created at: %s", iso_file)
     end)
@@ -48,7 +47,7 @@ target("iso")
             "-cpu", "qemu64,+x2apic",
             "-smp", "4",
             "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
-            "-cdrom", config.buildir() .. "/ExampleOS.iso"
+            "-cdrom", config.buildir() .. "/PlantOS.iso"
         }
         
         os.runv("qemu-system-x86_64", flags)
