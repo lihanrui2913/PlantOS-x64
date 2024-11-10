@@ -25,14 +25,27 @@ void kmain(void)
 
     color_printk(WHITE, BLACK, "Plant OS x64 starting...\n");
 
-    init_pmm();
-    init_vmm();
-
     sys_vector_init();
 }
 
+#include "driver/acpi.h"
+#include "irq.h"
+#include "driver/hpet.h"
+
 void kstage2(void)
 {
+    init_pmm();
+    init_vmm();
+
+    acpi_init();
+
+    init_irq();
+
+    HPET_init();
+
     for (;;)
-        __asm__("hlt");
+    {
+        sti();
+        hlt();
+    }
 }

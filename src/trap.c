@@ -67,7 +67,7 @@ void do_bounds(struct pt_regs *regs, unsigned long error_code)
 // 6 #UD 无效/未定义的机器码
 void do_undefined_opcode(struct pt_regs *regs, unsigned long error_code)
 {
-    kerror("do_undefined_opcode(6),\tError Code:%#18lx,\tRSP:%#18lx,\tRIP:%#18lx, pid:%ld", error_code, regs->rsp, regs->rip);
+    kerror("do_undefined_opcode(6),\tError Code:%#18lx,\tRSP:%#18lx,\tRIP:%#18lx", error_code, regs->rsp, regs->rip);
     while (1)
         hlt();
 }
@@ -146,7 +146,7 @@ void do_stack_segment_fault(struct pt_regs *regs, unsigned long error_code)
 // 13 #GP 通用保护性异常
 void do_general_protection(struct pt_regs *regs, unsigned long error_code)
 {
-    kerror("do_general_protection(13),\tError Code:%#18lx,\tRSP:%#18lx,\tRIP:%#18lx\tpid=%ld\n", error_code, regs->rsp, regs->rip);
+    kerror("do_general_protection(13),\tError Code:%#18lx,\tRSP:%#18lx,\tRIP:%#18lx\n", error_code, regs->rsp, regs->rip);
     if (error_code & 0x01)
         color_printk(RED, BLACK, "The exception occurred during delivery of an event external to the program,such as an interrupt or an earlier exception.\n");
 
@@ -175,7 +175,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long error_code)
                          : "=r"(cr2)::"memory");
 
     kerror("do_page_fault(14),Error code :%#018lx,RSP:%#018lx, RBP=%#018lx, RIP:%#018lx\n", error_code, regs->rsp, regs->rbp, regs->rip);
-    kerror("regs->rax = %#018lx\n", regs->rax);
     if (!(error_code & 0x01))
         color_printk(RED, BLACK, "Page Not-Present,\t");
 

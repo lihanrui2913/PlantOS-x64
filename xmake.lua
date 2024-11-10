@@ -8,11 +8,8 @@ set_policy("run.autobuild", true)
 set_policy("build.optimization.lto", true)
 
 target("kernel")
-set_kind("binary")
-set_kind("binary")
 set_languages("c23")
 set_kind("binary")
-set_languages("c23")
 set_toolchains("gcc")
 set_default(false)
 
@@ -21,7 +18,9 @@ add_files("src/**.S")
 add_files("src/**.c")
 
 add_cflags("-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")
-add_ldflags("-nostdlib", "-static", "-T", "assets/linker.ld")
+add_ldflags("-nostdlib", "-static", "-T", "assets/linker.ld", {
+    force = true
+})
 
 if is_mode("release") then
     set_symbols("debug")
@@ -49,8 +48,15 @@ end)
 on_run(function(target)
     import("core.project.config")
 
-    local flags = {"-M", "q35", "-cpu", "qemu64,+x2apic", "-m", "2G", "-smp", "4", "-drive",
-                   "if=pflash,format=raw,file=assets/ovmf-code.fd", "-cdrom", config.buildir() .. "/PlantOS.iso"}
+    local flags = {"-M", "q35", "-m", "2G", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
+                   "-cdrom", config.buildir() .. "/PlantOS.iso", "--enable-kvm"}
 
-    os.runv("qemu-system-x86_64", flags)
+    local wsl = true;
+
+    if wsl then
+        os.runv("sudo qemu-system-x86_64", flags)
+    else
+        os.runv("qemu-system-x86_64", flags)
+
+    end
 end)

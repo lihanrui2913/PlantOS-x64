@@ -54,10 +54,18 @@ void init_pmm();
 uint64_t allocate_frame();
 void deallocate_frame(uint64_t frame);
 
+uint64_t *get_cr3();
+
 /* VMM */
 
 #define HEAP_START 0xFFFFFFFFC0000000
-#define HEAP_SIZE 8 * 1024
+#define HEAP_SIZE 0x10000
+
+#define SPECIAL_MEMOEY_MAPPING_VIRT_ADDR_BASE 0xFFFFA00000000000
+#define ACPI_RSDT_MAPPING_OFFSET 0x10000000
+#define ACPI_XSDT_MAPPING_OFFSET 0x20000000
+#define IO_APIC_MAPPING_OFFSET 0xfec00000
+#define LOCAL_APIC_MAPPING_OFFSET 0xfee00000
 
 #define flush_tlb()                 \
     do                              \

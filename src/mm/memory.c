@@ -85,7 +85,7 @@ void init_pmm()
                 }
             }
 
-            bitmap = bitmap_address;
+            bitmap = (uint8_t *)PAGE_OFFSET;
             bitmap_initialized = true;
 
             for (uint64_t j = entry->base / 4096; j < (entry->base + bitmap_size + 4095) / 4096; j++)
@@ -136,10 +136,10 @@ uint64_t heap = HEAP_START;
 void init_vmm()
 {
     for (int i = 0; i < HEAP_SIZE; i += PAGE_4K_SIZE)
-        vmm_mmap((uint64_t)get_cr3(), true, HEAP_START + i, allocate_frame(), 4096, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+        vmm_mmap((uint64_t)get_cr3(), true, heap + i, allocate_frame(), 4096, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
 
-    *(uint64_t *)heap = 0x00FFFFF0;
-    *(uint64_t *)(heap + HEAP_SIZE - 8) = ~0ULL;
+    *((uint64_t *)heap) = 0x0000FFF0;
+    *((uint64_t *)(heap + 0x0000FFF8)) = ~(0ULL);
 }
 
 typedef struct
@@ -243,10 +243,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
                     --pgt_num.num_PTE;
                     uint64_t *pte_ptr = pt_ptr + pte_id;
 
-                    if (*pte_ptr != 0)
-                        color_printk(YELLOW, BLACK, "pte already exists.");
-                    else
-                        set_pt(pte_ptr, mk_pt((uint64_t)phys_addr_start + length_mapped, flags | (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
+                    set_pt(pte_ptr, mk_pt((uint64_t)phys_addr_start + length_mapped, flags | (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
                     length_mapped += PAGE_4K_SIZE;
                 }
             }
@@ -256,7 +253,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
         flush_tlb();
     return;
 failed:;
-    color_printk(RED, BLACK, "Map memory failed. vaddr=%#018lx, paddr=%#018lx", virt_addr_start, phys_addr_start);
+    color_printk(RED, BLACK, "Map memory failed. vaddr=%#018lx, paddr=%#018lx\n", virt_addr_start, phys_addr_start);
 }
 
 void *kalloc(uint64_t size)
