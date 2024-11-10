@@ -17,6 +17,7 @@ set_toolchains("gcc")
 set_default(false)
 
 add_includedirs("include")
+add_files("src/**.S")
 add_files("src/**.c")
 
 add_cflags("-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")

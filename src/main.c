@@ -5,6 +5,7 @@
 
 #include "display/printk.h"
 #include "mm/memory.h"
+#include "trap.h"
 
 __attribute__((used, section(".limine_requests"))) static volatile LIMINE_BASE_REVISION(3);
 
@@ -27,6 +28,11 @@ void kmain(void)
     init_pmm();
     init_vmm();
 
+    sys_vector_init();
+}
+
+void kstage2(void)
+{
     for (;;)
         __asm__("hlt");
 }
