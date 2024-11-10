@@ -1,4 +1,4 @@
-# Limine C Xmake Template
+# Plant OS x64
 
 This repository contains a basic x86-64 kernel in C using Limine.
 

@@ -5,7 +5,7 @@ CMakeLists.txt
 
 # IDE Config
 .idea/
-.vscode/
+.vscode/settings.json
 
 # MacOS Cache
 .DS_Store

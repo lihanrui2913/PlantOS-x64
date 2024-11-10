@@ -4,6 +4,7 @@
 #include <limine.h>
 
 #include "display/printk.h"
+#include "mm/memory.h"
 
 __attribute__((used, section(".limine_requests"))) static volatile LIMINE_BASE_REVISION(3);
 
@@ -21,7 +22,10 @@ void kmain(void)
 
     init_printk();
 
-    color_printk(WHITE, BLACK, "Plant OS x64 starting...");
+    color_printk(WHITE, BLACK, "Plant OS x64 starting...\n");
+
+    init_pmm();
+    init_vmm();
 
     for (;;)
         __asm__("hlt");

@@ -80,7 +80,7 @@ int skip_atoi(const char **s)
     return i;
 }
 
-static char *number(char *str, long num, int base, int size, int precision, int type)
+char *number(char *str, long num, int base, int size, int precision, int type)
 {
     char c, sign, tmp[50];
     const char *digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -273,7 +273,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
             break;
 
         case 'p':
-
+        {
             if (field_width == -1)
             {
                 field_width = 2 * sizeof(void *);
@@ -282,31 +282,32 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 
             str = number(str, (unsigned long)va_arg(args, void *), 16, field_width, precision, flags);
             break;
-
+        }
         case 'x':
-
+        {
             flags |= SMALL;
-
+        }
         case 'X':
-
+        {
             if (qualifier == 'l')
                 str = number(str, va_arg(args, unsigned long), 16, field_width, precision, flags);
             else
                 str = number(str, va_arg(args, unsigned int), 16, field_width, precision, flags);
             break;
-
+        }
         case 'd':
         case 'i':
-
+        {
             flags |= SIGN;
+        }
         case 'u':
-
+        {
             if (qualifier == 'l')
                 str = number(str, va_arg(args, long), 10, field_width, precision, flags);
             else
                 str = number(str, va_arg(args, int), 10, field_width, precision, flags);
             break;
-
+        }
         case 'n':
 
             if (qualifier == 'l')
