@@ -58,9 +58,7 @@ void init_pmm()
         }
     }
 
-    color_printk(WHITE, BLACK, "mem_size = %#018lx\n", mem_size);
-
-    uint64_t bitmap_size = mem_size / 4096;
+    uint64_t bitmap_size = mem_size / PAGE_4K_SIZE;
     uint64_t bitmap_phys_address = 0;
 
     for (uint64_t i = 0; i < response->entry_count; i++)
@@ -85,13 +83,13 @@ void init_pmm()
                 }
             }
 
-            bitmap = (uint8_t *)PAGE_OFFSET;
+            bitmap = bitmap_address;
             bitmap_initialized = true;
 
-            for (uint64_t j = entry->base / 4096; j < (entry->base + bitmap_size + 4095) / 4096; j++)
+            for (uint64_t j = entry->base / PAGE_4K_SIZE; j < (entry->base + bitmap_size + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; j++)
                 bitmap_clear(j);
 
-            for (uint64_t i = (entry->base + bitmap_size + 4095) / 4096; i < (entry->base + entry->length + 4095) / 4096; i++)
+            for (uint64_t i = (entry->base + bitmap_size + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; i < (entry->base + entry->length + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; i++)
                 bitmap_set(i);
         }
     }
@@ -102,22 +100,29 @@ void init_pmm()
 
         if (entry->type == LIMINE_MEMMAP_USABLE && entry->base != bitmap_phys_address)
         {
-            for (uint64_t i = entry->base / 4096; i < (entry->length / 4096); i++)
+            for (uint64_t i = entry->base / PAGE_4K_SIZE; i < (entry->length / PAGE_4K_SIZE); i++)
             {
                 bitmap_set(i);
             }
         }
     }
+
+    for (uint64_t i = 0; i < 0x100000; i++)
+    {
+        bitmap_clear(i / PAGE_4K_SIZE);
+    }
+
+    color_printk(WHITE, BLACK, "mem_size = %#018lx\n", mem_size);
 }
 
 uint64_t allocate_frame()
 {
-    for (uint64_t i = 0; i <= mem_size / 4096; i++)
+    for (uint64_t i = 0; i <= mem_size / PAGE_4K_SIZE; i++)
     {
         if (bitmap_get(i) != 0)
         {
             bitmap_clear(i);
-            return i * 4096;
+            return i * PAGE_4K_SIZE;
         }
     }
     color_printk(RED, WHITE, "No enougth memory for allocate\n");
@@ -126,7 +131,7 @@ uint64_t allocate_frame()
 
 void deallocate_frame(uint64_t frame)
 {
-    bitmap_set(frame / 4096);
+    bitmap_set(frame / PAGE_4K_SIZE);
 }
 
 /* VMM */
@@ -135,11 +140,15 @@ uint64_t heap = HEAP_START;
 
 void init_vmm()
 {
-    for (int i = 0; i < HEAP_SIZE; i += PAGE_4K_SIZE)
-        vmm_mmap((uint64_t)get_cr3(), true, heap + i, allocate_frame(), 4096, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+    for (uint64_t i = HEAP_START; i < HEAP_START + HEAP_SIZE + PAGE_4K_SIZE; i += PAGE_4K_SIZE)
+    {
+        uint64_t phys = allocate_frame();
+        // color_printk(WHITE, BLACK, "mapping heap: %#018lx -> %#018lx\n", i, phys);
+        vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+    }
 
-    *((uint64_t *)heap) = 0x0000FFF0;
-    *((uint64_t *)(heap + 0x0000FFF8)) = ~(0ULL);
+    *((uint64_t *)heap) = HEAP_SIZE - 0x10;
+    *((uint64_t *)(heap + HEAP_SIZE - 0x08)) = ~(0ULL);
 }
 
 typedef struct
@@ -154,6 +163,7 @@ static void mm_calculate_entry_num(uint64_t length, mm_pgt_entry_num_t *ent)
 {
     if (ent == NULL)
         return;
+
     ent->num_PML4E = (length + (1UL << PAGE_GDT_SHIFT) - 1) >> PAGE_GDT_SHIFT;
     ent->num_PDPTE = (length + PAGE_1G_SIZE - 1) >> PAGE_1G_SHIFT;
     ent->num_PDE = (length + PAGE_2M_SIZE - 1) >> PAGE_2M_SHIFT;
@@ -222,16 +232,16 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
                 --pgt_num.num_PDE;
                 // 计算当前2M物理页对应的pdt的页表项的物理地址
                 uint64_t *pde_ptr = pd_ptr + pde_id;
+                if (*pde_ptr & (1 << 7))
+                {
+                    // 当前页表项已经被映射了2MB物理页
+                    goto failed;
+                }
                 if (*pde_ptr == 0)
                 {
                     // 创建四级页表
                     uint64_t *addr = (uint64_t *)allocate_frame();
                     set_pdt(pde_ptr, mk_pdt(addr, (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
-                }
-                else if (*pde_ptr & (1 << 7))
-                {
-                    // 当前页表项已经被映射了2MB物理页
-                    goto failed;
                 }
 
                 uint64_t pte_id = (((virt_addr_start + length_mapped) >> PAGE_4K_SHIFT) & 0x1ff);
@@ -251,6 +261,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
     }
     if (flush)
         flush_tlb();
+
     return;
 failed:;
     color_printk(RED, BLACK, "Map memory failed. vaddr=%#018lx, paddr=%#018lx\n", virt_addr_start, phys_addr_start);
