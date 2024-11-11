@@ -43,7 +43,7 @@ typedef uint64_t (*syscall_handler_t)(struct pt_regs *regs);
 #define SYS_GETCWD 79
 #define SYS_CHDIR 80
 
-// different of linuxc
+// different of linux
 #define SYS_PRINT 513
 
 uint64_t enter_syscall_int(uint64_t rax, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6);

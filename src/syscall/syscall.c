@@ -1,13 +1,21 @@
 #include "syscall/syscall.h"
+#include "display/kprint.h"
+#include "errno.h"
 #include "gate.h"
 
-syscall_handler_t system_call_table[MAX_SYSCALL_NUM];
+syscall_handler_t system_call_table[MAX_SYSCALL_NUM] = {(syscall_handler_t)0};
 
 extern void syscall_int();
 
-void do_syscall_int(struct pt_regs *regs, unsigned long error_code)
+uint64_t do_syscall_int(struct pt_regs *regs, unsigned long error_code)
 {
-    uint64_t ret = system_call_table[regs->rax](regs);
+    syscall_handler_t handler = system_call_table[regs->rax];
+    if (handler == (syscall_handler_t)0)
+    {
+        kwarn("Unknown system call index: %d", regs->rax);
+        return (uint64_t)-ENOSYS;
+    }
+    uint64_t ret = handler(regs);
     regs->rax = ret;
 }
 
@@ -63,7 +71,7 @@ SYSCALL_DEFINER(sys_vfork)
 
 SYSCALL_DEFINER(sys_print)
 {
-    color_printk(WHITE, BLACK, (const char *)regs->rdi);
+    color_printk(BLACK, WHITE, (const char *)regs->rdi);
 }
 
 void init_syscall()

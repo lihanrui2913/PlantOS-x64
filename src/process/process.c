@@ -102,8 +102,6 @@ void __switch_to(struct process_control_block *prev, struct process_control_bloc
 
 void user_level_function()
 {
-    __asm__ __volatile__("int $0x80" ::"a"(SYS_PRINT), "D"("Hello world!!!"));
-
     for (;;)
         pause();
 }
@@ -121,8 +119,6 @@ void user_level_function()
 #pragma GCC optimize("O0")
 uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 {
-    // kdebug("do_execve is running...");
-
     // 当前进程正在与父进程共享地址空间，需要创建
     // 独立的地址空间才能使新程序正常运行
     if (current_pcb->flags & PF_VFORK)
@@ -225,11 +221,11 @@ uint64_t initial_kernel_thread(uint64_t arg)
 
     pci_init();
 
-    for (;;)
-    {
-        sti();
-        hlt();
-    }
+    // for (;;)
+    // {
+    //     sti();
+    //     hlt();
+    // }
 
     // 准备切换到用户态
     struct pt_regs *regs;
