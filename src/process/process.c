@@ -7,6 +7,8 @@
 #include <mm/memory.h>
 #include <syscall/syscall.h>
 
+#include "driver/pci.h"
+
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
 
@@ -220,6 +222,8 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 uint64_t initial_kernel_thread(uint64_t arg)
 {
     color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx\n", arg);
+
+    pci_init();
 
     for (;;)
     {

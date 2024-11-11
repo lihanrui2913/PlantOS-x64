@@ -39,6 +39,14 @@ init_gdt:
     lretq
 
 flush_gdt:
+    movq %cr0, %rax
+    and $0xFFFB, %ax		//clear coprocessor emulation CR0.EM
+    or $0x2, %ax			//set coprocessor monitoring  CR0.MP
+    movq %rax, %cr0
+    movq %cr4, %rax
+    or $(3 << 9), %ax		//set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
+    movq %rax, %cr4
+
     jmp kstage2
 
 .global init_ap_gdt
@@ -58,4 +66,12 @@ init_ap_gdt:
     lretq
 
 flush_ap_gdt:
+    movq %cr0, %rax
+    and $0xFFFB, %ax		//clear coprocessor emulation CR0.EM
+    or $0x2, %ax			//set coprocessor monitoring  CR0.MP
+    movq %rax, %cr0
+    movq %cr4, %rax
+    or $(3 << 9), %ax		//set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
+    movq %rax, %cr4
+
     jmp kap_stage2

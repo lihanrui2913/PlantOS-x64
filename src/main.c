@@ -31,8 +31,6 @@ void kmain(void)
 
     color_printk(WHITE, BLACK, "Plant OS x64 starting...\n");
 
-    kinfo("(uint64_t)initial_proc_union.stack) = %#018lx", (uint64_t)initial_proc_union.stack);
-
     struct idtr p;
     p.idt_vaddr = (uint64_t)IDT_Table;
     p.size = sizeof(IDT_Table) - 1;
