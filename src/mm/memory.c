@@ -91,7 +91,7 @@ void init_pmm()
         }
     }
 
-    for (uint64_t i = 0; i < 0x100000; i++)
+    for (uint64_t i = 0; i < 0x100000; i += PAGE_4K_SIZE)
     {
         bitmap_clear(i / PAGE_4K_SIZE);
     }

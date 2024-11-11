@@ -60,6 +60,33 @@ ret_from_exception:
 ENTRY(ret_from_intr)
     jmp Restore_all
 
+ENTRY(ret_from_system_call)
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %r11
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rbx
+    popq %rcx
+    popq %rdx
+    popq %rsi
+    popq %rdi
+    popq %rbp
+
+    popq %rax   //  不允许直接pop到ds
+    movq %rax, %ds
+
+    popq %rax
+    movq %rax, %es
+
+    popq %rax
+    addq $0x10, %rsp // 弹出变量FUNC和errcode
+
+    sti
+    iretq
     
 Err_Code:
     pushq	%rax
@@ -259,5 +286,13 @@ ENTRY(virtualization_exception)
     pushq $0
     pushq %rax
     leaq do_virtualization_exception(%rip), %rax    // 获取中断服务程序的地址
+    xchgq %rax, (%rsp)  // 把FUNC的地址换入栈中
+    jmp Err_Code
+
+// 0x80 系统调用门
+ENTRY(syscall_int)
+    pushq $0
+    pushq %rax
+    leaq do_syscall_int(%rip), %rax    // 获取系统调用服务程序的地址
     xchgq %rax, (%rsp)  // 把FUNC的地址换入栈中
     jmp Err_Code

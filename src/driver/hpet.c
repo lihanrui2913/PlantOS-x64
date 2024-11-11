@@ -3,6 +3,8 @@
 #include <mm/memory.h>
 #include <driver/apic.h>
 
+#include <sched/sched.h>
+
 static struct acpi_HPET_description_table_t *hpet_table;
 static uint64_t HPET_REG_BASE = 0;
 static char measure_apic_timer_flag; // 初始化apic时钟时所用到的标志变量
@@ -47,6 +49,9 @@ void HPET_handler(uint64_t number, uint64_t param, struct pt_regs *regs)
     switch (param)
     {
     case 0:
+        io_mfence();
+        sched_update_jiffies();
+        io_mfence();
         break;
     default:
         kwarn("Unsupported HPET irq: %d.", number);
@@ -68,12 +73,12 @@ int HPET_init()
     // 使用I/O APIC 的IRQ2接收hpet定时器0的中断
     apic_make_rte_entry(&entry, 34, IO_APIC_FIXED, DEST_PHYSICAL, IDLE, POLARITY_HIGH, IRR_RESET, EDGE_TRIGGER, MASKED, 0);
 
-    // kdebug("[HPET0] conf register=%#018lx  conf register[63:32]=%#06lx", (*(uint64_t *)(HPET_REG_BASE + TIM0_CONF)), ((*(uint64_t *)(HPET_REG_BASE + TIM0_CONF))>>32)&0xffffffff);
+    // kdebug("[HPET0] conf register=%#018lx  conf register[63:32]=%#06lx", (*(uint64_t *)(HPET_REG_BASE + TIM0_CONF)), ((*(uint64_t *)(HPET_REG_BASE + TIM0_CONF)) >> 32) & 0xffffffff);
     *(uint64_t *)(HPET_REG_BASE + MAIN_CNT) = 0;
     io_mfence();
     *(uint64_t *)(HPET_REG_BASE + TIM0_CONF) = 0x004c; // 设置定时器0为周期定时，边沿触发，默认投递到IO APIC的2号引脚(看conf寄存器的高32bit，哪一位被置1，则可以投递到哪一个I/O apic引脚)
     io_mfence();
-    *(uint64_t *)(HPET_REG_BASE + TIM0_COMP) = 1789772; // 0.25s 产生一次interrupt
+    *(uint64_t *)(HPET_REG_BASE + TIM0_COMP) = 14318179; // 1s 产生一次interrupt
 
     io_mfence();
 

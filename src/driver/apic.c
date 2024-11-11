@@ -5,6 +5,9 @@
 #include "gate.h"
 #include "driver/acpi.h"
 
+#include "process/process.h"
+#include "sched/sched.h"
+
 void cpu_cpuid(uint32_t mop, uint32_t sop, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
     __asm__ __volatile__("cpuid \n\t" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "0"(mop), "2"(sop) : "memory");
@@ -114,9 +117,6 @@ void apic_init_ap_core_local_apic()
 
     // kdebug("After enable xAPIC and x2APIC: edx=%#010x, eax=%#010x", edx, eax);
 
-    // 检测是否成功启用xAPIC和x2APIC
-    if (eax & 0xc00)
-        kinfo("xAPIC & x2APIC enabled!");
     // 设置SVR寄存器，开启local APIC、禁止EOI广播
 
     // enable SVR[8]
@@ -131,19 +131,12 @@ void apic_init_ap_core_local_apic()
                          :
                          : "memory");
 
-    if (eax & 0x100)
-        color_printk(RED, YELLOW, "SVR[8] enabled\n");
-    if (edx & 0x1000)
-        color_printk(RED, YELLOW, "SVR[12] enabled\n");
-
     // get local APIC ID
     __asm__ __volatile__("movq $0x802,	%%rcx	\n\t"
                          "rdmsr	\n\t"
                          : "=a"(eax), "=d"(edx)
                          :
                          : "memory");
-
-    color_printk(RED, YELLOW, "x2APIC ID:%#010x\n", eax);
 
     // 由于尚未配置LVT对应的处理程序，因此先屏蔽所有的LVT
 
@@ -165,8 +158,6 @@ void apic_init_ap_core_local_apic()
         :
         : "a"(0x10000), "d"(0x00)
         : "memory");
-
-    kdebug("All LVT Masked");
 }
 /**
  * @brief 初始化local apic
@@ -396,15 +387,12 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
 {
     if (number < 0x80 && number >= 32) // 以0x80为界限，低于0x80的是外部中断控制器，高于0x80的是Local APIC
     {
-        // ==========外部中断控制器========
         irq_desc_t *irq = &interrupt_desc[number - 32];
 
-        // 执行中断上半部处理程序
         if (irq != NULL && irq->handler != NULL)
             irq->handler(number, irq->parameter, rsp);
         else
             kwarn("Intr vector [%d] does not have a handler!");
-        // 向中断控制器发送应答消息
         if (irq->controller != NULL && irq->controller->ack != NULL)
             irq->controller->ack(number);
         else
@@ -420,9 +408,7 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
     }
     else if (number > 0x80)
     {
-        // color_printk(RED, BLACK, "SMP IPI [ %d ]\n", number);
         apic_local_apic_edge_ack(number);
-
         {
             irq_desc_t *irq = &SMP_IPI_desc[number - 200];
             if (irq->handler != NULL)
@@ -432,6 +418,12 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
     else
     {
         kwarn("do IRQ receive: %d", number);
+    }
+
+    if (current_pcb->flags & PF_NEED_SCHED)
+    {
+        io_mfence();
+        sched();
     }
 }
 
