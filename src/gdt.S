@@ -40,3 +40,22 @@ init_gdt:
 
 flush_gdt:
     jmp kstage2
+
+.global init_ap_gdt
+init_ap_gdt:
+    lgdt GDT_POINTER
+
+    mov $0x10, %rax
+    mov %rax, %ds
+    mov %rax, %es
+    mov %rax, %fs
+    mov %rax, %gs
+    mov %rax, %ss
+
+    movq $flush_ap_gdt, %rax
+    pushq $0x08
+    pushq %rax
+    lretq
+
+flush_ap_gdt:
+    jmp kap_stage2

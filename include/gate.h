@@ -4,6 +4,7 @@
 #include <mm/memory.h>
 
 void init_gdt();
+void init_ap_gdt();
 
 // 描述符表的结构体
 struct desc_struct
@@ -17,7 +18,7 @@ struct gate_struct
     unsigned char x[16];
 };
 
-extern struct gate_struct IDT_Table[]; // IDT_Table是trap.c中的IDT_Table
+extern struct gate_struct IDT_Table[256]; // IDT_Table是trap.c中的IDT_Table
 
 struct gdtr
 {

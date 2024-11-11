@@ -1,9 +1,14 @@
-#include <driver/apic.h>
-#include <driver/acpi.h>
-#include <display/kprint.h>
-#include <glib.h>
-#include <gate.h>
-#include <irq.h>
+#include "driver/apic.h"
+#include "display/kprint.h"
+#include "display/printk.h"
+#include "glib.h"
+#include "gate.h"
+#include "driver/acpi.h"
+
+void cpu_cpuid(uint32_t mop, uint32_t sop, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
+{
+    __asm__ __volatile__("cpuid \n\t" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "0"(mop), "2"(sop) : "memory");
+}
 
 struct apic_IO_APIC_map
 {
@@ -27,23 +32,13 @@ uint32_t local_apic_max_LVT_entries;
 
 static struct acpi_Multiple_APIC_Description_Table_t *madt;
 static struct acpi_IO_APIC_Structure_t *io_apic_ICS;
-
-#define send_EOI()                                      \
-    do                                                  \
-    {                                                   \
-        __asm__ __volatile__("movq	$0x00,	%%rdx	\n\t"   \
-                             "movq	$0x00,	%%rax	\n\t"   \
-                             "movq 	$0x80b,	%%rcx	\n\t" \
-                             "wrmsr	\n\t" ::            \
-                                 : "memory");           \
-    } while (0)
-
 /**
  * @brief 初始化io_apic
  *
  */
 void apic_io_apic_init()
 {
+
     uint64_t madt_addr;
     acpi_iter_SDT(acpi_get_MADT, &madt_addr);
     madt = (struct acpi_Multiple_APIC_Description_Table_t *)madt_addr;
@@ -75,7 +70,7 @@ void apic_io_apic_init()
 
     // kdebug("(ul)apic_ioapic_map.virtual_index_addr=%#018lx", (ul)apic_ioapic_map.virtual_index_addr);
     // 填写页表，完成地址映射
-    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)apic_ioapic_map.virtual_index_addr, apic_ioapic_map.addr_phys, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)apic_ioapic_map.virtual_index_addr, (uint64_t)apic_ioapic_map.addr_phys, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
 
     // 设置IO APIC ID 为0x0f000000
     *apic_ioapic_map.virtual_index_addr = 0x00;
@@ -173,15 +168,6 @@ void apic_init_ap_core_local_apic()
 
     kdebug("All LVT Masked");
 }
-
-void cpu_cpuid(uint32_t mop, uint32_t sop, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
-{
-    __asm__ __volatile__("cpuid \n\t"
-                         : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
-                         : "0"(mop), "2"(sop)
-                         : "memory");
-}
-
 /**
  * @brief 初始化local apic
  *
@@ -189,7 +175,7 @@ void cpu_cpuid(uint32_t mop, uint32_t sop, uint32_t *eax, uint32_t *ebx, uint32_
 void apic_local_apic_init()
 {
     // 映射Local APIC 寄存器地址
-    vmm_mmap((uint64_t)get_cr3(), true, APIC_LOCAL_APIC_VIRT_BASE_ADDR, 0xfee00000UL, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+    vmm_mmap((uint64_t)get_cr3(), true, APIC_LOCAL_APIC_VIRT_BASE_ADDR, 0xfee00000, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
     uint32_t a, b, c, d;
 
     cpu_cpuid(1, 0, &a, &b, &c, &d);
@@ -237,7 +223,6 @@ void apic_local_apic_init()
     // 检测是否成功启用xAPIC和x2APIC
     if (eax & 0xc00)
         kinfo("xAPIC & x2APIC enabled!");
-
     /*
         io_mfence();
         uint32_t *svr = (uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_SVR);
@@ -339,7 +324,7 @@ void apic_local_apic_init()
     io_mfence();
     kdebug("cmci = %#018lx", *(uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_LVT_CMCI));
     */
-    *(uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_LVT_TIMER) = APIC_LVT_INT_MASKED;
+    *(uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_LVT_TIMER) = 0x10000;
     io_mfence();
     /*
     *(uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_LVT_THERMAL) = 0x1000000;
@@ -433,7 +418,7 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
                                      : "memory");
         }
     }
-    else if (number >= 200)
+    else if (number > 0x80)
     {
         // color_printk(RED, BLACK, "SMP IPI [ %d ]\n", number);
         apic_local_apic_edge_ack(number);
@@ -442,24 +427,6 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
             irq_desc_t *irq = &SMP_IPI_desc[number - 200];
             if (irq->handler != NULL)
                 irq->handler(number, irq->parameter, rsp);
-        }
-    }
-    else if (number >= 150 && number < 200)
-    {
-        irq_desc_t *irq = &local_apic_interrupt_desc[number - 150];
-
-        // 执行中断上半部处理程序
-        if (irq != NULL && irq->handler != NULL)
-            irq->handler(number, irq->parameter, rsp);
-        else
-            kwarn("Intr vector [%d] does not have a handler!");
-        // 向中断控制器发送应答消息
-        if (irq->controller != NULL && irq->controller->ack != NULL)
-            irq->controller->ack(number);
-        else
-        {
-            // 向EOI寄存器写入0x00表示结束中断
-            send_EOI();
         }
     }
     else

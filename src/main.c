@@ -6,6 +6,8 @@
 #include "display/printk.h"
 #include "mm/memory.h"
 #include "trap.h"
+#include "gate.h"
+#include "smp.h"
 
 __attribute__((used, section(".limine_requests"))) static volatile LIMINE_BASE_REVISION(3);
 
@@ -25,6 +27,11 @@ void kmain(void)
 
     color_printk(WHITE, BLACK, "Plant OS x64 starting...\n");
 
+    struct idtr p;
+    p.idt_vaddr = (uint64_t)IDT_Table;
+    p.size = sizeof(IDT_Table) - 1;
+    __asm__ __volatile__("lidt %0" ::"m"(p));
+
     sys_vector_init();
 }
 
@@ -40,6 +47,8 @@ void kstage2(void)
     acpi_init();
 
     init_irq();
+
+    init_smp();
 
     HPET_init();
 

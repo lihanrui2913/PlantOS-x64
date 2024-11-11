@@ -29,17 +29,17 @@ uint64_t mem_size = 0;
 
 void bitmap_set(uint64_t index)
 {
-    bitmap[index] = 1;
+    bitmap[index / 8] |= (1 << (index % 8));
 }
 
 void bitmap_clear(uint64_t index)
 {
-    bitmap[index] = 0;
+    bitmap[index / 8] &= ~(1 << (index % 8));
 }
 
 uint8_t bitmap_get(uint64_t index)
 {
-    return bitmap[index];
+    return bitmap[index / 8] & (1 << (index % 8));
 }
 
 void init_pmm()
@@ -58,7 +58,7 @@ void init_pmm()
         }
     }
 
-    uint64_t bitmap_size = mem_size / PAGE_4K_SIZE;
+    uint64_t bitmap_size = mem_size / PAGE_4K_SIZE / 8;
     uint64_t bitmap_phys_address = 0;
 
     for (uint64_t i = 0; i < response->entry_count; i++)
@@ -67,23 +67,7 @@ void init_pmm()
 
         if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= bitmap_size && !bitmap_initialized)
         {
-            bitmap_phys_address = entry->base;
-            uint8_t *bitmap_address = (uint8_t *)PAGE_OFFSET;
-
-            {
-                uint64_t *tmp = phy_2_virt((uint64_t *)((uint64_t)get_cr3() & (~0xfffUL)) + (((uint64_t)bitmap_address >> PAGE_GDT_SHIFT) & 0x1ff));
-                tmp = phy_2_virt((uint64_t *)(*tmp & (~0xfffUL)) + (((uint64_t)bitmap_address >> PAGE_1G_SHIFT) & 0x1ff));
-                tmp = phy_2_virt((uint64_t *)(*tmp & (~0xfffUL)) + (((uint64_t)bitmap_address >> PAGE_2M_SHIFT) & 0x1ff));
-
-                uint64_t *tmp1;
-                for (uint64_t i = 0; i < bitmap_size; i += PAGE_4K_SIZE)
-                {
-                    tmp1 = phy_2_virt((uint64_t *)(*tmp & (~0xfffUL)) + ((((uint64_t)bitmap_address + i) >> PAGE_4K_SHIFT) & 0x1ff));
-                    set_pdt(tmp1, mk_pdt((uint64_t)entry->base + i, PAGE_PRESENT | PAGE_R_W));
-                }
-            }
-
-            bitmap = bitmap_address;
+            bitmap = (uint8_t *)phy_2_virt(entry->base);
             bitmap_initialized = true;
 
             for (uint64_t j = entry->base / PAGE_4K_SIZE; j < (entry->base + bitmap_size + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; j++)

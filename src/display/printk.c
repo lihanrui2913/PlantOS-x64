@@ -1,5 +1,6 @@
 #include "display/printk.h"
 #include "limine.h"
+#include "spinlock.h"
 
 __attribute__((used, section(".limine_requests"))) static volatile struct limine_framebuffer_request framebuffer_request = {
     .id = LIMINE_FRAMEBUFFER_REQUEST,
@@ -21,6 +22,7 @@ struct position
     unsigned int *FB_addr;
     unsigned long FB_length;
 
+    spinlock_t spinlock;
 } pos;
 
 void init_printk()
@@ -44,6 +46,8 @@ void init_printk()
 
     pos.XCharSize = 8;
     pos.YCharSize = 16;
+
+    spin_init(&pos.spinlock);
 }
 
 void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font)
@@ -343,6 +347,8 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ...)
 {
+    spin_lock(&pos.spinlock);
+
     int i = 0;
     int count = 0;
     int line = 0;
@@ -402,6 +408,8 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
             pos.Yposition = 0;
         }
     }
+
+    spin_unlock(&pos.spinlock);
 
     return i;
 }

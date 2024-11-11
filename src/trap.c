@@ -274,10 +274,5 @@ void sys_vector_init()
 
     // 32-255为用户自定义中断内部
 
-    struct idtr p;
-    p.idt_vaddr = (uint64_t)IDT_Table;
-    p.size = sizeof(IDT_Table) - 1;
-    __asm__ __volatile__("lidt %0" ::"m"(p));
-
     init_gdt();
 }
