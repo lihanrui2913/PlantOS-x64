@@ -12,6 +12,8 @@
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
 
+bool process_init_done = false;
+
 spinlock_t process_global_pid_write_lock; // 增加pid的写锁
 long process_global_pid = 1;              // 系统中最大的pid
 
@@ -217,7 +219,7 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 #pragma GCC optimize("O0")
 uint64_t initial_kernel_thread(uint64_t arg)
 {
-    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx\n", arg);
+    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx, cpu_id = %d\n", arg, proc_current_cpu_id);
 
     pci_init();
 
@@ -354,6 +356,8 @@ void init_process()
     initial_proc_union.pcb.cpu_id = 0;
     initial_proc_union.pcb.virtual_runtime = (1UL << 60);
     current_pcb->virtual_runtime = (1UL << 60);
+
+    ksuccess("process initialized");
 }
 
 /**

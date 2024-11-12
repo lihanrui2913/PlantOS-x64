@@ -405,6 +405,7 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         }
         if (pos.Yposition >= (pos.YResolution / pos.YCharSize))
         {
+            memset(pos.FB_addr, 0, pos.FB_length);
             pos.Yposition = 0;
         }
     }

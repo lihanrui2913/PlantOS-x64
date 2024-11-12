@@ -91,6 +91,8 @@ static inline struct process_control_block *get_current_pcb()
 							 : "memory");                                                           \
 	} while (0)
 
+extern bool process_init_done;
+
 /**
  * @brief 初始化系统的第一个进程
  *

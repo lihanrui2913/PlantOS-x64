@@ -397,7 +397,6 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
             irq->controller->ack(number);
         else
         {
-
             // 向EOI寄存器写入0x00表示结束中断
             __asm__ __volatile__("movq	$0x00,	%%rdx	\n\t"
                                  "movq	$0x00,	%%rax	\n\t"
@@ -406,13 +405,35 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
                                      : "memory");
         }
     }
-    else if (number > 0x80)
+    else if (number >= 200)
     {
         apic_local_apic_edge_ack(number);
         {
             irq_desc_t *irq = &SMP_IPI_desc[number - 200];
             if (irq->handler != NULL)
                 irq->handler(number, irq->parameter, rsp);
+        }
+    }
+    else if (number >= 150 && number < 200)
+    {
+        irq_desc_t *irq = &local_apic_interrupt_desc[number - 150];
+
+        // 执行中断上半部处理程序
+        if (irq != NULL && irq->handler != NULL)
+            irq->handler(number, irq->parameter, rsp);
+        else
+            kwarn("Intr vector [%d] does not have a handler!");
+        // 向中断控制器发送应答消息
+        if (irq->controller != NULL && irq->controller->ack != NULL)
+            irq->controller->ack(number);
+        else
+        {
+            // 向EOI寄存器写入0x00表示结束中断
+            __asm__ __volatile__("movq	$0x00,	%%rdx	\n\t"
+                                 "movq	$0x00,	%%rax	\n\t"
+                                 "movq 	$0x80b,	%%rcx	\n\t"
+                                 "wrmsr	\n\t" ::
+                                     : "memory");
         }
     }
     else

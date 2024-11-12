@@ -40,15 +40,15 @@ irq_desc_t SMP_IPI_desc[SMP_IRQ_NUM] = {0};
 #define IRQ_NAME2(nr) nr##interrupt(void)
 #define IRQ_NAME(nr) IRQ_NAME2(IRQ##nr)
 
-#define Build_IRQ(nr)                                                          \
-    void IRQ_NAME(nr);                                                         \
-    __asm__(SYMBOL_NAME_STR(IRQ) #nr "interrupt:		\n\t"                        \
-                                     "pushq	$0x00				\n\t" SAVE_ALL \
-                                     "movq	%rsp,	%rdi			\n\t"                  \
-                                     "leaq	ret_from_intr(%rip),	%rax	\n\t"     \
-                                     "pushq	%rax				\n\t"                      \
-                                     "movq	$" #nr ",	%rsi			\n\t"             \
-                                     "jmp	do_IRQ	\n\t");
+#define Build_IRQ(nr)                                                                                  \
+    void IRQ_NAME(nr);                                                                                 \
+    __asm__(".section .text\n\t" SYMBOL_NAME_STR(IRQ) #nr "interrupt:		\n\t"                           \
+                                                          "pushq	$0x00				\n\t" SAVE_ALL \
+                                                          "movq	%rsp,	%rdi			\n\t"                     \
+                                                          "leaq	ret_from_intr(%rip),	%rax	\n\t"        \
+                                                          "pushq	%rax				\n\t"                         \
+                                                          "movq	$" #nr ",	%rsi			\n\t"                 \
+                                                          "jmp	do_IRQ	\n\t");
 
 // 构造中断入口
 Build_IRQ(0x20);
@@ -123,9 +123,6 @@ Build_IRQ(0xcf);
 Build_IRQ(0xd0);
 Build_IRQ(0xd1);
 
-Build_IRQ(0x80); // 系统调用入口
-void (*syscall_intr_table[1])(void) = {IRQ0x80interrupt};
-
 // 初始化IPI中断服务程序数组
 void (*SMP_interrupt_table[SMP_IRQ_NUM])(void) =
     {
@@ -152,6 +149,7 @@ Build_IRQ(0x9c);
 Build_IRQ(0x9d);
 Build_IRQ(0x9e);
 Build_IRQ(0x9f);
+
 void (*local_apic_interrupt_table[LOCAL_APIC_IRQ_NUM])(void) =
     {
         IRQ0x96interrupt,
@@ -232,11 +230,46 @@ int irq_unregister(uint64_t irq_num)
     return 0;
 }
 
+void ipi_send_IPI(uint32_t dest_mode, uint32_t deliver_status, uint32_t level, uint32_t trigger,
+                  uint32_t vector, uint32_t deliver_mode, uint32_t dest_shorthand, bool apic_type, uint32_t destination)
+{
+    struct INT_CMD_REG icr_entry;
+    icr_entry.dest_mode = dest_mode;
+    icr_entry.deliver_status = deliver_status;
+    icr_entry.res_1 = 0;
+    icr_entry.level = level;
+    icr_entry.trigger = trigger;
+    icr_entry.res_2 = 0;
+    icr_entry.res_3 = 0;
+
+    icr_entry.vector = vector;
+    icr_entry.deliver_mode = deliver_mode;
+    icr_entry.dest_shorthand = dest_shorthand;
+
+    icr_entry.destination.x2apic_destination = destination;
+    wrmsr(0x830, *(unsigned long *)&icr_entry); // 发送ipi
+}
+
+int ipi_regiserIPI(uint64_t irq_num, void *arg,
+                   void (*handler)(uint64_t irq_num, uint64_t param, struct pt_regs *regs),
+                   uint64_t param, hardware_intr_controller *controller, char *irq_name)
+{
+    irq_desc_t *p = &SMP_IPI_desc[irq_num - 200];
+    p->controller = NULL;
+    p->irq_name = irq_name;
+    p->parameter = param;
+    p->flags = 0;
+    p->handler = handler;
+    return 0;
+}
+
 /**
  * @brief 初始化中断模块
  */
 void init_irq()
 {
     memset((void *)interrupt_desc, 0, sizeof(irq_desc_t) * IRQ_NUM);
+    memset((void *)local_apic_interrupt_desc, 0, sizeof(irq_desc_t) * LOCAL_APIC_IRQ_NUM);
+
     apic_init();
 }

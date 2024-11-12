@@ -72,7 +72,6 @@
 // 0x3A0~0x3D0 Reserved.
 // 分频配置寄存器（定时器专用）
 #define LOCAL_APIC_OFFSET_Local_APIC_CLKDIV 0x3e0
-
 /*
 
 1:	LVT	CMCI
@@ -200,6 +199,7 @@ struct apic_IO_APIC_RTE_entry
 // 屏蔽
 #define UNMASKED 0
 #define MASKED 1
+#define APIC_LVT_INT_MASKED 0x10000UL
 
 // 触发模式
 #define EDGE_TRIGGER 0  // 边沿触发
@@ -230,14 +230,6 @@ struct apic_IO_APIC_RTE_entry
 // 电平触发极性
 #define POLARITY_HIGH 0
 #define POLARITY_LOW 1
-
-/**
- * @brief 中断服务程序
- *
- * @param rsp 中断栈指针
- * @param number 中断向量号
- */
-void do_IRQ(struct pt_regs *rsp, uint64_t number);
 
 /**
  * @brief 读取RTE寄存器

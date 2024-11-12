@@ -4,7 +4,7 @@
 #include <mm/memory.h>
 
 void init_gdt();
-void init_ap_gdt();
+void init_ap_gdt(struct limine_smp_info *cpu);
 
 // 描述符表的结构体
 struct desc_struct

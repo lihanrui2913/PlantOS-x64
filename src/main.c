@@ -45,6 +45,7 @@ void kmain(void)
 #include "smp.h"
 #include "sched/sched.h"
 #include "syscall/syscall.h"
+#include "driver/apic_timer.h"
 
 void kstage2(void)
 {
@@ -52,10 +53,11 @@ void kstage2(void)
     init_vmm();
 
     set_tss_descriptor(10, &initial_tss[0]);
-    load_TR(10); // 加载TR寄存器
     uint64_t tss_item_addr = (uint64_t)phy_2_virt(0x7c00);
-    set_tss64((uint32_t *)&initial_tss[0], tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr,
+    set_tss64((uint32_t *)&initial_tss[0], (uint64_t)initial_proc_union.stack + STACK_SIZE, (uint64_t)initial_proc_union.stack + STACK_SIZE, (uint64_t)initial_proc_union.stack + STACK_SIZE, tss_item_addr,
               tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr);
+
+    load_TR(10); // 加载TR寄存器
 
     uint8_t *ptr = (uint8_t *)kalloc(STACK_SIZE) + STACK_SIZE;
     ((struct process_control_block *)(ptr - STACK_SIZE))->cpu_id = 0;
@@ -73,14 +75,19 @@ void kstage2(void)
     init_irq();
 
     HPET_init();
+    HPET_measure_freq();
 
     init_smp();
+
+    apic_timer_init();
 
     current_pcb->cpu_id = 0;
     current_pcb->preempt_count = 0;
     init_syscall();
     init_sched();
     init_process();
+
+    process_init_done = true;
 
     for (;;)
     {
