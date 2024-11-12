@@ -18,6 +18,8 @@
 #define hlt() __asm__ __volatile__("hlt	\n\t")
 #define pause() __asm__ __volatile__("pause	\n\t")
 
+typedef int dev_t;
+
 // 链表数据结构
 struct List
 {

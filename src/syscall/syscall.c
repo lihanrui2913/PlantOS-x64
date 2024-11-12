@@ -88,6 +88,7 @@ void init_syscall()
     system_call_table[SYS_MUNMAP] = sys_munmap;
     system_call_table[SYS_FORK] = sys_fork;
     system_call_table[SYS_VFORK] = sys_vfork;
+
     system_call_table[SYS_PRINT] = sys_print;
 
     set_system_trap_gate(0x80, 0, syscall_int);

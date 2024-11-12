@@ -7,8 +7,6 @@
 #include <mm/memory.h>
 #include <syscall/syscall.h>
 
-#include "driver/pci.h"
-
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
 
@@ -202,12 +200,14 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 
     vmm_mmap((uint64_t)current_pcb->mm->pgd, true, 0x800000, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
     memcpy(user_level_function, (void *)0x800000, PAGE_4K_SIZE);
-
     vmm_mmap((uint64_t)current_pcb->mm->pgd, true, stack_start_addr - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
 
     return 0;
 }
 #pragma GCC pop_options
+
+#include "driver/pci.h"
+#include "driver/block.h"
 
 /**
  * @brief 内核init进程
@@ -219,20 +219,17 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 #pragma GCC optimize("O0")
 uint64_t initial_kernel_thread(uint64_t arg)
 {
-    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx, cpu_id = %d\n", arg, proc_current_cpu_id);
+    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx\n", arg);
 
     pci_init();
+    init_block();
 
-    // for (;;)
-    // {
-    //     sti();
-    //     hlt();
-    // }
+    uint8_t *buffer = kalloc(512);
+    block_read(0, 68, 1, (uint64_t)buffer, 0, 0);
 
     // 准备切换到用户态
     struct pt_regs *regs;
 
-    // 若在后面这段代码中触发中断，return时会导致段选择子错误，从而触发#GP，因此这里需要cli
     cli();
     current_pcb->thread->rip = (uint64_t)ret_from_system_call;
     current_pcb->thread->rsp = (uint64_t)current_pcb + STACK_SIZE - sizeof(struct pt_regs);
@@ -348,7 +345,7 @@ void init_process()
     // 初始化进程的循环链表
     list_init(&initial_proc_union.pcb.list);
     io_mfence();
-    kernel_thread(initial_kernel_thread, 0x1103, CLONE_FS | CLONE_SIGNAL); // 初始化内核线程
+    kernel_thread(initial_kernel_thread, 0x1234, CLONE_FS | CLONE_SIGNAL); // 初始化内核线程
     io_mfence();
 
     initial_proc_union.pcb.state = PROC_RUNNING;

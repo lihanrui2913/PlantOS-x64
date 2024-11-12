@@ -23,8 +23,6 @@ __attribute__((used, section(".limine_requests"))) static volatile struct limine
 
 void kap_main(struct limine_smp_info *cpu)
 {
-    ksuccess("AP successfully started...");
-
     struct idtr p;
     p.idt_vaddr = (uint64_t)IDT_Table;
     p.size = sizeof(IDT_Table) - 1;
@@ -60,13 +58,12 @@ void kap_stage2(struct limine_smp_info *cpu)
 
     uint64_t stack_start;
     __asm__ __volatile__("movq %%rsp, %0" : "=r"(stack_start));
+    stack_start &= ~32767UL;
 
     set_tss64((uint32_t *)&initial_tss[cpu->processor_id], stack_start, stack_start, stack_start, cpu_core_info[cpu->processor_id].stack_start,
               cpu_core_info[cpu->processor_id].ist_stack_start, cpu_core_info[cpu->processor_id].ist_stack_start, cpu_core_info[cpu->processor_id].ist_stack_start, cpu_core_info[cpu->processor_id].ist_stack_start, cpu_core_info[cpu->processor_id].ist_stack_start, cpu_core_info[cpu->processor_id].ist_stack_start);
 
     apic_init_ap_core_local_apic();
-
-    apic_timer_ap_core_init();
 
     while (process_init_done == false)
         hlt();
@@ -92,6 +89,8 @@ void kap_stage2(struct limine_smp_info *cpu)
     initial_proc[proc_current_cpu_id] = current_pcb;
 
     current_pcb->preempt_count = 0;
+
+    apic_timer_ap_core_init();
 
     for (;;)
     {
