@@ -442,7 +442,7 @@ void pci_checkAllBuses()
     kfree(header);
 }
 
-void pci_init()
+void init_pci()
 {
     kinfo("Initializing PCI bus...");
     pci_checkAllBuses();

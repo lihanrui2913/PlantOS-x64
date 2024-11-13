@@ -12,7 +12,7 @@ extern struct List *pci_device_structure_list;
  * @brief 初始化pci驱动
  *
  */
-void pci_init();
+void init_pci();
 
 // pci设备结构的通用标题字段
 struct pci_device_structure_header_t

@@ -15,6 +15,7 @@ struct msi_msg_t
     uint32_t data;
     uint32_t vector_control;
 };
+
 struct pci_msi_desc_t
 {
     union

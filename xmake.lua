@@ -48,9 +48,13 @@ end)
 on_run(function(target)
     import("core.project.config")
 
+    os.runv("dd if=/dev/zero of=" .. config.buildir() .. "/disk.img bs=512 count=28800");
+    os.runv("mkfs.vfat -F 32 " .. config.buildir() .. "/disk.img");
+
     local flags = {"-M", "q35", "-m", "4G", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
-                   "-cdrom", config.buildir() .. "/PlantOS.iso", "--enable-kvm", "-device", "ahci,id=ahci", "-device",
-                   "ide-cd,bus=ahci.0"};
+                   "-cdrom", config.buildir() .. "/PlantOS.iso", "-drive",
+                   "id=root,if=none,format=raw,file=" .. config.buildir() .. "/disk.img", "-device", "ahci,id=ahci",
+                   "-device", "ide-hd,drive=root,bus=ahci.1", "--enable-kvm"};
 
     local wsl = true;
 

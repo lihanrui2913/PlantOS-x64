@@ -207,7 +207,8 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 #pragma GCC pop_options
 
 #include "driver/pci.h"
-#include "driver/block.h"
+#include "driver/dev.h"
+#include "driver/ahci.h"
 
 /**
  * @brief 内核init进程
@@ -221,11 +222,9 @@ uint64_t initial_kernel_thread(uint64_t arg)
 {
     color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx\n", arg);
 
-    pci_init();
-    init_block();
-
-    uint8_t *buffer = kalloc(512);
-    block_read(0, 68, 1, (uint64_t)buffer, 0, 0);
+    init_pci();
+    init_device();
+    init_ahci();
 
     // 准备切换到用户态
     struct pt_regs *regs;
