@@ -32,7 +32,7 @@ int device_read(dev_t dev, void *buf, size_t count, int idx, int flags)
     device_t *device = device_get(dev);
     if (device->read)
     {
-        return device->read(device->dev, device->ptr, buf, count, idx, flags);
+        return device->read(dev, device->ptr, buf, count, idx, flags);
     }
     kerror("read of device %d not implemented!!!\n", dev);
     return -ENOSYS;
@@ -43,7 +43,7 @@ int device_write(dev_t dev, void *buf, size_t count, int idx, int flags)
     device_t *device = device_get(dev);
     if (device->write)
     {
-        return device->write(device->dev, device->ptr, buf, count, idx, flags);
+        return device->write(dev, device->ptr, buf, count, idx, flags);
     }
     kerror("write of device %d not implemented!!!\n", dev);
     return -ENOSYS;

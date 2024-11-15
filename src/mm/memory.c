@@ -128,7 +128,7 @@ void init_vmm()
     {
         uint64_t phys = allocate_frame();
         // color_printk(WHITE, BLACK, "mapping heap: %#018lx -> %#018lx\n", i, phys);
-        vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
+        vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
     }
 
     *((uint64_t *)heap) = HEAP_SIZE - 0x10;

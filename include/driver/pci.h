@@ -212,7 +212,7 @@ void pci_checkAllBuses();
  * @param sub_class
  * @param res 返回的结果数组
  */
-void pci_get_device_structure(uint8_t class_code, uint8_t sub_class, struct pci_device_structure_header_t *res[], uint32_t *count_res);
+void pci_get_device_structure(uint8_t class_code, uint8_t sub_class, struct pci_device_structure_header_t **res, uint32_t *count_res);
 
 /**
  * @brief 寻找符合指定类型的capability list

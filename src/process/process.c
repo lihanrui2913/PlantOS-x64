@@ -226,6 +226,16 @@ uint64_t initial_kernel_thread(uint64_t arg)
     init_device();
     init_ahci();
 
+    uint8_t *buffer = kalloc(512);
+    dev_t dev = device_find(DEV_SATA_DISK, 0)->dev;
+    device_read(dev, buffer, 1, 0, 0);
+
+    for (int i = 0; i < 512; i++)
+    {
+        color_printk(ORANGE, BLACK, "%#04x ", buffer[i]);
+    }
+    color_printk(ORANGE, BLACK, "\n");
+
     // 准备切换到用户态
     struct pt_regs *regs;
 

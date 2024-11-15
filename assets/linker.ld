@@ -34,21 +34,21 @@ SECTIONS
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .text : {
-        *(.text)
+        *(.text .text.)
     } :text
 
     /* Move to the next memory page for .rodata */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .rodata : {
-        *(.rodata)
+        *(.rodata .rodata.)
     } :rodata
 
     /* Move to the next memory page for .data */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .data : {
-        *(.data)
+        *(.data .data.*)
     } :data
 
     /* Move to the next memory page for .data */

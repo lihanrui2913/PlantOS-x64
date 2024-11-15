@@ -356,6 +356,8 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
     i = vsprintf(buf, fmt, args);
     va_end(args);
 
+    cli();
+
     spin_lock(&pos.spinlock);
 
     for (count = 0; count < i || line; count++)
@@ -410,6 +412,8 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
     }
 
     spin_unlock(&pos.spinlock);
+
+    sti();
 
     return i;
 }

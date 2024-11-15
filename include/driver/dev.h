@@ -49,11 +49,11 @@ typedef struct device_t
     bool direct;        // 磁盘寻道方向
 
     // 设备控制
-    int (*ioctl)(dev_t self_dev_id, void *dev, int cmd, void *args, int flags);
+    int (*ioctl)(dev_t self_dev_id, void *dev, int cmd, void *args, uint64_t flags);
     // 读设备
-    int (*read)(dev_t self_dev_id, void *dev, void *buf, size_t count, int idx, int flags);
+    int (*read)(dev_t self_dev_id, void *dev, void *buf, size_t count, uint64_t idx, int flags);
     // 写设备
-    int (*write)(dev_t self_dev_id, void *dev, void *buf, size_t count, int idx, int flags);
+    int (*write)(dev_t self_dev_id, void *dev, void *buf, size_t count, uint64_t idx, int flags);
 } device_t;
 
 // 安装设备
