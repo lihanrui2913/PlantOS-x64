@@ -73,7 +73,7 @@ void apic_io_apic_init()
 
     // kdebug("(ul)apic_ioapic_map.virtual_index_addr=%#018lx", (ul)apic_ioapic_map.virtual_index_addr);
     // 填写页表，完成地址映射
-    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)apic_ioapic_map.virtual_index_addr, (uint64_t)apic_ioapic_map.addr_phys, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)apic_ioapic_map.virtual_index_addr, (uint64_t)apic_ioapic_map.addr_phys, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, false, true);
 
     // 设置IO APIC ID 为0x0f000000
     *apic_ioapic_map.virtual_index_addr = 0x00;
@@ -166,7 +166,7 @@ void apic_init_ap_core_local_apic()
 void apic_local_apic_init()
 {
     // 映射Local APIC 寄存器地址
-    vmm_mmap((uint64_t)get_cr3(), true, APIC_LOCAL_APIC_VIRT_BASE_ADDR, 0xfee00000, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+    vmm_mmap((uint64_t)get_cr3(), true, APIC_LOCAL_APIC_VIRT_BASE_ADDR, 0xfee00000, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, false, true);
     uint32_t a, b, c, d;
 
     cpu_cpuid(1, 0, &a, &b, &c, &d);

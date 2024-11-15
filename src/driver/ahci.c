@@ -124,7 +124,7 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
     if (slot == -1)
         return false;
 
-    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb + ((uint64_t)port->clbu << 32));
+    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb);
     cmdheader += slot;
     cmdheader->cfl = sizeof(FIS_REG_H2D) / sizeof(uint32_t); // Command FIS size
     cmdheader->w = 0;                                        // Read from device
@@ -132,7 +132,7 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
     cmdheader->p = 1;
     cmdheader->prdtl = (uint16_t)((count - 1) >> 4) + 1; // PRDT entries count
 
-    HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL *)((uint64_t)cmdheader->ctba + ((uint64_t)cmdheader->ctbau << 32));
+    HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL *)((uint64_t)cmdheader->ctba);
     memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) + (cmdheader->prdtl - 1) * sizeof(HBA_PRDT_ENTRY));
 
     // 8K bytes (16 sectors) per PRDT
@@ -141,8 +141,8 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
     {
         flush_cache(buf);
 
-        cmdtbl->prdt_entry[0].dba = (uint32_t)((uint64_t)buf & 0xffffffff);
-        cmdtbl->prdt_entry[0].dbau = (uint32_t)(((uint64_t)buf >> 32) & 0xffffffff);
+        cmdtbl->prdt_entry[0].dba = (uint32_t)(virt_2_phy(buf));
+        cmdtbl->prdt_entry[0].dbau = (uint32_t)((virt_2_phy(buf) >> 32) & 0xFFFFFFFF);
         cmdtbl->prdt_entry[i].dbc = 8 * 1024 - 1; // 8K bytes (this value should always be set to 1 less
                                                   // than the actual value)
         cmdtbl->prdt_entry[i].i = 1;
@@ -150,8 +150,8 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
         count -= 16;     // 16 sectors
     }
     // Last entry
-    cmdtbl->prdt_entry[0].dba = (uint32_t)((uint64_t)buf & 0xffffffff);
-    cmdtbl->prdt_entry[0].dbau = (uint32_t)(((uint64_t)buf >> 32) & 0xffffffff);
+    cmdtbl->prdt_entry[0].dba = (uint32_t)(virt_2_phy(buf));
+    cmdtbl->prdt_entry[0].dbau = (uint32_t)((virt_2_phy(buf) >> 32) & 0xFFFFFFFF);
     cmdtbl->prdt_entry[i].dbc = (count << 9) - 1; // 512 bytes per sector
     cmdtbl->prdt_entry[i].i = 1;
 
@@ -197,7 +197,7 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
             break;
         if (port->is & HBA_PxIS_TFES) // Task file error
         {
-            kinfo("Read disk error");
+            kerror("Read disk error");
             return false;
         }
     }
@@ -205,7 +205,7 @@ bool ahci_read(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count,
     // Check again
     if (port->is & HBA_PxIS_TFES)
     {
-        kinfo("Read disk error");
+        kerror("Read disk error");
         return false;
     }
 
@@ -221,15 +221,15 @@ bool ahci_write(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count
     if (slot == -1)
         return false;
 
-    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb & +(uint64_t)port->clbu << 32);
+    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb);
     cmdheader += slot;
     cmdheader->cfl = sizeof(FIS_REG_H2D) / sizeof(uint32_t); // Command FIS size
-    cmdheader->w = 1;                                        // 写硬盘
-    cmdheader->p = 1;
+    cmdheader->w = 0;                                        // Read from device
     cmdheader->c = 1;
+    cmdheader->p = 1;
     cmdheader->prdtl = (uint16_t)((count - 1) >> 4) + 1; // PRDT entries count
 
-    HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL *)((uint64_t)cmdheader->ctba + (uint64_t)cmdheader->ctbau << 32);
+    HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL *)((uint64_t)cmdheader->ctba);
     memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) + (cmdheader->prdtl - 1) * sizeof(HBA_PRDT_ENTRY));
 
     // 8K bytes (16 sectors) per PRDT
@@ -238,8 +238,8 @@ bool ahci_write(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count
     {
         flush_cache(buf);
 
-        cmdtbl->prdt_entry[0].dba = (uint32_t)((uint64_t)buf & 0xffffffff);
-        cmdtbl->prdt_entry[0].dbau = (uint32_t)(((uint64_t)buf >> 32) & 0xffffffff);
+        cmdtbl->prdt_entry[0].dba = (uint32_t)(virt_2_phy(buf));
+        cmdtbl->prdt_entry[0].dbau = (uint32_t)((virt_2_phy(buf) >> 32) & 0xFFFFFFFF);
         cmdtbl->prdt_entry[i].dbc = 8 * 1024 - 1; // 8K bytes (this value should always be set to 1 less
                                                   // than the actual value)
         cmdtbl->prdt_entry[i].i = 1;
@@ -248,8 +248,8 @@ bool ahci_write(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count
     }
     // Last entry
 
-    cmdtbl->prdt_entry[0].dba = (uint32_t)((uint64_t)buf & 0xffffffff);
-    cmdtbl->prdt_entry[0].dbau = (uint32_t)(((uint64_t)buf >> 32) & 0xffffffff);
+    cmdtbl->prdt_entry[0].dba = (uint32_t)(virt_2_phy(buf));
+    cmdtbl->prdt_entry[0].dbau = (uint32_t)((virt_2_phy(buf) >> 32) & 0xFFFFFFFF);
     cmdtbl->prdt_entry[i].dbc = (count << 9) - 1; // 512 bytes per sector
     cmdtbl->prdt_entry[i].i = 1;
 
@@ -295,7 +295,7 @@ bool ahci_write(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count
             break;
         if (port->is & HBA_PxIS_TFES) // Task file error
         {
-            kinfo("Write disk error");
+            kerror("Write disk error");
             return false;
         }
     }
@@ -303,7 +303,7 @@ bool ahci_write(HBA_PORT *port, uint32_t startl, uint32_t starth, uint32_t count
     // Check again
     if (port->is & HBA_PxIS_TFES)
     {
-        kinfo("Write disk error");
+        kerror("Write disk error");
         return false;
     }
     flush_cache(buf);
@@ -333,25 +333,22 @@ void port_rebase(HBA_PORT *port, int portno)
     // Command list entry maxim count = 32
     // Command list maxim size = 32*32 = 1K per port
     port->clb = (uint32_t)(ahci_ports_base_addr & 0xFFFFFFFF) + (portno << 10);
-    port->clbu = (uint32_t)((ahci_ports_base_addr >> 32) & 0xFFFFFFFF);
     memset((uint8_t *)ahci_ports_base_addr + (portno << 10), 0, 1024);
 
     // FIS offset: 32K+256*portno
     // FIS entry size = 256 bytes per port
     port->fb = (uint32_t)(ahci_ports_base_addr & 0xFFFFFFFF) + (32 << 10) + (portno << 8);
-    port->fbu = (uint32_t)((ahci_ports_base_addr >> 32) & 0xFFFFFFFF);
     memset((uint8_t *)(ahci_ports_base_addr + (32 << 10) + (portno << 8)), 0, 256);
 
     // Command table offset: 40K + 8K*portno
     // Command table size = 256*32 = 8K per port
-    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb + ((uint64_t)port->clbu << 32));
+    HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER *)((uint64_t)port->clb);
     for (int i = 0; i < 32; i++)
     {
         cmdheader[i].prdtl = 8; // 8 prdt entries per command table
                                 // 256 bytes per command table, 64+16+48+16*8
         // Command table offset: 40K + 8K*portno + cmdheader_index*256
         cmdheader[i].ctba = (uint32_t)(ahci_ports_base_addr & 0xFFFFFFFF) + (40 << 10) + (portno << 13) + (i << 8);
-        cmdheader[i].ctbau = (uint32_t)((ahci_ports_base_addr >> 32) & 0xFFFFFFFF);
         memset((uint8_t *)(ahci_ports_base_addr + (40 << 10) + (portno << 13) + (i << 8)), 0, 256);
     }
 
@@ -448,27 +445,19 @@ void init_ahci()
         return;
     }
     cache_line_size = get_cache_line_size();
-    hba_mem_address = (HBA_MEM *)AHCI_MAPPING_BASE;
-    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)hba_mem_address, ahci_pci->BAR5, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
-
-    kinfo("HBA Address has been Mapped in %#018lx ", hba_mem_address);
+    vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE, ahci_pci->BAR5 & PAGE_2M_MASK, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, false, true);
+    hba_mem_address = (HBA_MEM *)(AHCI_MAPPING_BASE + ahci_pci->BAR5 - (ahci_pci->BAR5 & PAGE_2M_MASK));
 
     ahci_search_ports(hba_mem_address);
 
-    ahci_ports_base_addr = (uint64_t)kalloc(1048576);
+    cache = kalloc(PAGE_2M_SIZE);
 
-    cache = kalloc(1048576);
+    ahci_ports_base_addr = (uint64_t)AHCI_MAPPING_BASE + PAGE_4K_SIZE;
 
     for (uint32_t i = 0; i < port_total; i++)
     {
         port_rebase(&(hba_mem_address->ports[ports[i]]), ports[i]);
-    }
-
-    for (uint32_t i = 0; i < port_total; i++)
-    {
-        dev_t drive = device_install(DEV_BLOCK, DEV_SATA_DISK, NULL, "SATA DRIVE", 0, NULL, ahci_blockdev_read, ahci_blockdev_write);
+        dev_t drive = device_install(DEV_BLOCK, DEV_DISK, NULL, "SATA DRIVE", 0, NULL, ahci_blockdev_read, ahci_blockdev_write);
         drive_mapping[drive] = ports[i];
     }
-
-    kinfo("ahci init done.");
 }

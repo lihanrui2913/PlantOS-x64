@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glib.h>
+#include "process/wait_queue.h"
 #include "errno.h"
 
 #define DEVICE_NR 64 // 设备数量
@@ -20,8 +21,7 @@ enum device_subtype_t
 {
     DEV_CONSOLE = 1, // 控制台
     DEV_KEYBOARD,    // 键盘
-    DEV_SATA_DISK,   // SATA 磁盘
-    DEV_SATA_CD,     // SATA 光盘
+    DEV_DISK,        // 磁盘
 };
 
 // 设备控制命令
@@ -30,6 +30,34 @@ enum device_cmd_t
     DEV_CMD_SECTOR_START = 1, // 获得设备扇区开始位置 lba
     DEV_CMD_SECTOR_COUNT,     // 获得设备扇区数量
     DEV_CMD_SECTOR_SIZE,      // 获得设备扇区大小
+};
+
+/**
+ * @brief 块设备请求队列内的packet
+ *
+ */
+struct block_device_request_packet
+{
+    uint8_t cmd;
+    uint64_t LBA_start;
+    uint32_t count;
+    uint64_t buffer_vaddr;
+
+    uint8_t device_type; // 0: ahci
+    void (*end_handler)(uint64_t num, uint64_t arg);
+
+    wait_queue_node_t wait_queue;
+};
+
+/**
+ * @brief 块设备的请求队列
+ *
+ */
+struct block_device_request_queue
+{
+    wait_queue_node_t wait_queue_list;
+    struct block_device_request_packet *in_service; // 正在请求的结点
+    uint64_t request_count;
 };
 
 #define REQ_READ 0  // 块设备读
@@ -72,9 +100,9 @@ device_t *device_get(dev_t dev);
 int device_ioctl(dev_t dev, int cmd, void *args, int flags);
 
 // 读设备
-int device_read(dev_t dev, void *buf, size_t count, int idx, int flags);
+int device_read(dev_t dev, void *buf, size_t count, uint64_t idx, int flags);
 
 // 写设备
-int device_write(dev_t dev, void *buf, size_t count, int idx, int flags);
+int device_write(dev_t dev, void *buf, size_t count, uint64_t idx, int flags);
 
 void init_device();

@@ -42,7 +42,6 @@ static inline struct process_control_block *get_current_pcb()
 		.pid = 0,                         \
 		.priority = 2,                    \
 		.virtual_runtime = 0,             \
-		.fds = {0},                       \
 		.next_pcb = &proc,                \
 		.parent_pcb = &proc,              \
 		.exit_code = 0,                   \

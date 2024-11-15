@@ -96,10 +96,6 @@ struct process_control_block
 	long priority;			 // 优先级
 	int64_t virtual_runtime; // 虚拟运行时间
 
-	// 进程拥有的文件描述符的指针数组
-	// todo: 改用动态指针数组
-	struct vfs_file_t *fds[PROC_MAX_FD_NUM];
-
 	// 链表中的下一个pcb
 	struct process_control_block *next_pcb;
 	// 父进程的pcb

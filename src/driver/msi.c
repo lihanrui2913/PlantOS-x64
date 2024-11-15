@@ -102,7 +102,7 @@ static __always_inline int __msix_map_table(struct pci_device_structure_header_t
     // kdebug("pci_dev->msix_mmio_vaddr=%#018lx, bar=%#010lx, table offset=%#010lx, table_size=%#010lx, mmio_size=%d", pci_dev->msix_mmio_vaddr, bar, pci_dev->msix_offset, pci_dev->msix_table_size, pci_dev->msix_mmio_size);
 
     // 将msix table映射到页表
-    vmm_mmap((uint64_t)get_cr3(), true, pci_dev->msix_mmio_vaddr, bar, pci_dev->msix_mmio_size, PAGE_PRESENT | PAGE_R_W, false, true);
+    vmm_mmap((uint64_t)get_cr3(), true, pci_dev->msix_mmio_vaddr, bar, pci_dev->msix_mmio_size, PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, false, true);
     return 0;
 }
 

@@ -21,13 +21,13 @@ int device_ioctl(dev_t dev, int cmd, void *args, int flags)
     device_t *device = device_get(dev);
     if (device->ioctl)
     {
-        return device->ioctl(device->dev, device->ptr, cmd, args, flags);
+        return device->ioctl(dev, device->ptr, cmd, args, flags);
     }
     kerror("ioctl of device %d not implemented!!!\n", dev);
     return -ENOSYS;
 }
 
-int device_read(dev_t dev, void *buf, size_t count, int idx, int flags)
+int device_read(dev_t dev, void *buf, size_t count, uint64_t idx, int flags)
 {
     device_t *device = device_get(dev);
     if (device->read)
@@ -38,7 +38,7 @@ int device_read(dev_t dev, void *buf, size_t count, int idx, int flags)
     return -ENOSYS;
 }
 
-int device_write(dev_t dev, void *buf, size_t count, int idx, int flags)
+int device_write(dev_t dev, void *buf, size_t count, uint64_t idx, int flags)
 {
     device_t *device = device_get(dev);
     if (device->write)

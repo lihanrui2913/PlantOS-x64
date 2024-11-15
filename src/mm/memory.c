@@ -128,8 +128,11 @@ void init_vmm()
     {
         uint64_t phys = allocate_frame();
         // color_printk(WHITE, BLACK, "mapping heap: %#018lx -> %#018lx\n", i, phys);
-        vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+        vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, false, true);
     }
+
+    // 初始化内核低半区内存映射
+    memcpy(phy_2_virt(get_cr3()) + 256, phy_2_virt(get_cr3()), PAGE_4K_SIZE / 2);
 
     *((uint64_t *)heap) = HEAP_SIZE - 0x10;
     *((uint64_t *)(heap + HEAP_SIZE - 0x08)) = ~(0ULL);
@@ -237,6 +240,8 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
                     --pgt_num.num_PTE;
                     uint64_t *pte_ptr = pt_ptr + pte_id;
 
+                    if (phys_addr_start == 0)
+                        phys_addr_start = allocate_frame();
                     set_pt(pte_ptr, mk_pt((uint64_t)phys_addr_start + length_mapped, flags | (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
                     length_mapped += PAGE_4K_SIZE;
                 }

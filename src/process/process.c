@@ -198,9 +198,9 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
     regs->rbp = regs->rsp = current_pcb->mm->stack_start;
     regs->rip = 0x800000;
 
-    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, 0x800000, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
+    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, 0x800000, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, true, false);
     memcpy(user_level_function, (void *)0x800000, PAGE_4K_SIZE);
-    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, stack_start_addr - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
+    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, stack_start_addr - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W | PAGE_PCD | PAGE_PWT, true, false);
 
     return 0;
 }
@@ -227,8 +227,9 @@ uint64_t initial_kernel_thread(uint64_t arg)
     init_ahci();
 
     uint8_t *buffer = kalloc(512);
-    dev_t dev = device_find(DEV_SATA_DISK, 0)->dev;
-    device_read(dev, buffer, 1, 0, 0);
+    memset(buffer, 0, 512);
+    dev_t dev = device_find(DEV_DISK, 0)->dev;
+    device_read(dev, buffer, 1, 64, 0);
 
     for (int i = 0; i < 512; i++)
     {
@@ -251,7 +252,7 @@ uint64_t initial_kernel_thread(uint64_t arg)
 
     regs = (struct pt_regs *)current_pcb->thread->rsp;
     current_pcb->flags = 0;
-    // 加载用户态程序: init.elf
+    // 加载用户态程序: /init.elf
     __asm__ __volatile__("movq %1, %%rsp   \n\t"
                          "pushq %2    \n\t"
                          "jmp do_execve  \n\t" ::"D"(current_pcb->thread->rsp),
