@@ -22,6 +22,7 @@ enum device_subtype_t
     DEV_CONSOLE = 1, // 控制台
     DEV_KEYBOARD,    // 键盘
     DEV_DISK,        // 磁盘
+    DEV_CD,          // 光盘
 };
 
 // 设备控制命令

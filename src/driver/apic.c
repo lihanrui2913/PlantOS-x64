@@ -115,8 +115,6 @@ void apic_init_ap_core_local_apic()
                          "rdmsr  \n\t"
                          : "=a"(eax), "=d"(edx)::"memory");
 
-    // kdebug("After enable xAPIC and x2APIC: edx=%#010x, eax=%#010x", edx, eax);
-
     // 设置SVR寄存器，开启local APIC、禁止EOI广播
 
     // enable SVR[8]
@@ -213,7 +211,7 @@ void apic_local_apic_init()
 
     // 检测是否成功启用xAPIC和x2APIC
     if (eax & 0xc00)
-        kinfo("xAPIC & x2APIC enabled!");
+        ksuccess("xAPIC & x2APIC enabled!");
     /*
         io_mfence();
         uint32_t *svr = (uint32_t *)(APIC_LOCAL_APIC_VIRT_BASE_ADDR + LOCAL_APIC_OFFSET_Local_APIC_SVR);
@@ -254,9 +252,9 @@ void apic_local_apic_init()
     // kdebug("After setting SVR: edx=%#010x, eax=%#010x", edx, eax);
 
     if (eax & 0x100)
-        kinfo("APIC Software Enabled.");
+        ksuccess("APIC Software Enabled.");
     if (eax & 0x1000)
-        kinfo("EOI-Broadcast Suppression Enabled.");
+        ksuccess("EOI-Broadcast Suppression Enabled.");
 
     // 获取Local APIC的基础信息 （参见英特尔开发手册Vol3A 10-39）
     //                          Table 10-6. Local APIC Register Address Map Supported by x2APIC

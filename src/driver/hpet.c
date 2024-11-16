@@ -140,7 +140,7 @@ int HPET_init()
     HPET_NUM_TIM_CAP = (tmp >> 8) & 0x1f; // 读取计时器数量
     kinfo("Total HPET timers: %d", HPET_NUM_TIM_CAP);
 
-    kinfo("HPET driver Initialized.");
+    ksuccess("HPET driver Initialized.");
     // kinfo("HPET CLK_PERIOD=%#03lx Frequency=%f", HPET_COUNTER_CLK_PERIOD, (double)HPET_freq);
     // kdebug("HPET_freq=%ld", (long)HPET_freq);
     // kdebug("HPET_freq=%lf", HPET_freq);

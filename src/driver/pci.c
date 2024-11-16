@@ -435,7 +435,7 @@ void init_pci()
 {
     kinfo("Initializing PCI bus...");
     pci_checkAllBuses();
-    kinfo("PCI bus initialized.");
+    ksuccess("PCI bus initialized.");
 }
 
 /**

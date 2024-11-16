@@ -80,5 +80,5 @@ void apic_timer_init()
 {
     kinfo("Initializing apic timer for cpu %d", proc_current_cpu_id);
     irq_register(APIC_TIMER_IRQ_NUM, &apic_timer_ticks_result, &apic_timer_handler, 0, &apic_timer_intr_controller, "apic timer");
-    kinfo("Successfully initialized apic timer for cpu %d", proc_current_cpu_id);
+    ksuccess("Successfully initialized apic timer for cpu %d", proc_current_cpu_id);
 }

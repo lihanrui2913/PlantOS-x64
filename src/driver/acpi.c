@@ -196,5 +196,5 @@ void acpi_init()
             hlt();
     }
 
-    kinfo("ACPI module initialized!");
+    ksuccess("ACPI module initialized!");
 }
