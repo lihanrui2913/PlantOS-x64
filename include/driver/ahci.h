@@ -41,7 +41,7 @@
 #define HBA_PxTFD_BSY (1 << 7)
 #define HBA_PxTFD_DRQ (1 << 3)
 
-#define HBA_RGHC_ACHI_ENABLE (1 << 31)
+#define HBA_RGHC_ahci_ENABLE (1 << 31)
 #define HBA_RGHC_INTR_ENABLE (1 << 1)
 #define HBA_RGHC_RESET 1
 
@@ -150,7 +150,7 @@ int hba_prepare_cmd(struct hba_port *port,
 
 void init_ahci();
 
-void achi_register_ops(struct hba_port *port);
+void ahci_register_ops(struct hba_port *port);
 
 extern struct ahci_hba hba;
 

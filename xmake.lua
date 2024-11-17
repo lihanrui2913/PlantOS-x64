@@ -42,15 +42,20 @@ on_build(function(target)
 
     local iso_file = "$(buildir)/PlantOS.iso"
     os.run("xorriso -as mkisofs --efi-boot limine/limine-uefi-cd.bin %s -o %s", iso_dir, iso_file)
+    os.run("assets/limine/limine bios-install %s", iso_file)
     print("ISO image created at: %s", iso_file)
 end)
 
 on_run(function(target)
     import("core.project.config")
 
-    local flags = {"-M", "q35", "-m", "8G", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
-                   "-cdrom", config.buildir() .. "/PlantOS.iso", "-cpu", "IvyBridge,+x2apic", "--enable-kvm", "-device",
-                   "ahci,id=ahci", "-device", "ide-cd,bus=ahci.0"};
+    os.run("dd if=/dev/zero of=" .. config.buildir() .. "/hdd.img bs=512 count=28800");
+    os.run("mkfs.vfat -F 32 " .. config.buildir() .. "/hdd.img");
+
+    local flags = {"-M", "q35", "-m", "8G", "-smp", "4", "-bios", "/usr/share/ovmf/OVMF.fd", "-cdrom",
+                   config.buildir() .. "/PlantOS.iso", "-drive",
+                   "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img", "-cpu", "IvyBridge,+x2apic",
+                   "-device", "ahci,id=ahci", "-device", "ide-hd,drive=root,bus=ahci.0", "--enable-kvm"};
 
     local wsl = false;
 

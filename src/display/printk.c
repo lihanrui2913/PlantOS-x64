@@ -512,3 +512,12 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
 
     return i;
 }
+
+int sprintk(char *buf, const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    vsprintf(buf, fmt, args);
+    va_end(args);
+}

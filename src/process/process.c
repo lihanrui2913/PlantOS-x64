@@ -225,15 +225,18 @@ uint64_t initial_kernel_thread(uint64_t arg)
     init_pci();
     init_ahci();
 
+    uint8_t buf[512];
+    memset(buf, 0, 512);
     struct hba_port *port = hba.ports[0];
-    uint8_t *buffer = kalloc(512);
-    port->device->ops.read_buffer(port, 64, buffer, 1);
+    int ret = port->device->ops.read_buffer(port, 0, buf, 512);
+    if (!ret)
+        kerror("Cannot read disk");
 
     for (int i = 0; i < 512; i++)
     {
-        color_printk(ORANGE, BLACK, "%#02lx ", buffer[i]);
+        color_printk(ORANGE, BLACK, "%#04lx ", buf[i]);
     }
-    color_printk(ORANGE, BLACK, "\n");
+    color_printk(BLACK, BLACK, "\n");
 
     // 准备切换到用户态
     struct pt_regs *regs;

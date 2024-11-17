@@ -64,10 +64,8 @@ void kap_stage2(struct limine_smp_info *cpu)
 
     apic_init_ap_core_local_apic();
 
-    apic_timer_ap_core_init();
-
     while (process_init_done == false)
-        hlt();
+        pause();
 
     memset(current_pcb, 0, sizeof(struct process_control_block));
 
@@ -90,6 +88,8 @@ void kap_stage2(struct limine_smp_info *cpu)
     initial_proc[proc_current_cpu_id] = current_pcb;
 
     current_pcb->preempt_count = 0;
+
+    apic_timer_ap_core_init();
 
     for (;;)
     {

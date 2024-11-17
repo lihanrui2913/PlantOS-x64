@@ -295,14 +295,14 @@ void init_ahci()
         hba.base[HBA_RGHC] |= HBA_RGHC_RESET;
         wait_until(!(hba.base[HBA_RGHC] & HBA_RGHC_RESET));
 
-        hba.base[HBA_RGHC] |= HBA_RGHC_ACHI_ENABLE;
+        hba.base[HBA_RGHC] |= HBA_RGHC_ahci_ENABLE;
         hba.base[HBA_RGHC] |= HBA_RGHC_INTR_ENABLE;
 
         hba_reg_t cap = hba.base[HBA_RCAP];
         hba_reg_t pmap = hba.base[HBA_RPI];
 
-        hba.ports_num = (cap & 0x1f) + 1;
-        hba.cmd_slots = (cap >> 8) & 0x1f;
+        hba.ports_num = (cap & 0x1f) + 1;  // CAP.PI
+        hba.cmd_slots = (cap >> 8) & 0x1f; // CAP.NCS
         hba.version = hba.base[HBA_RVER];
         hba.ports_bmp = pmap;
 
@@ -316,8 +316,7 @@ void init_ahci()
             }
 
             struct hba_port *port =
-                (struct hba_port *)phy_2_virt(allocate_frame());
-
+                (struct hba_port *)kalloc(sizeof(struct hba_port));
             hba_reg_t *port_regs =
                 (hba_reg_t *)(&hba.base[HBA_RPBASE + i * HBA_RPSIZE]);
 
@@ -326,17 +325,17 @@ void init_ahci()
             if (!clbp)
             {
                 // 每页最多4个命令队列
-                clb_pa = allocate_frame();
-                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)phy_2_virt_dev(clb_pa), clb_pa, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
-                clb_pg_addr = (uintptr_t)(phy_2_virt_dev(clb_pa));
+                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE, 0, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+                clb_pa = physical_mapping(AHCI_MAPPING_BASE + PAGE_2M_SIZE);
+                clb_pg_addr = (uintptr_t)(AHCI_MAPPING_BASE + PAGE_2M_SIZE);
                 memset((void *)clb_pg_addr, 0, PAGE_4K_SIZE);
             }
             if (!fisp)
             {
                 // 每页最多16个FIS
-                fis_pa = allocate_frame();
-                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)phy_2_virt_dev(fis_pa), fis_pa, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
-                fis_pg_addr = (uintptr_t)(phy_2_virt_dev(fis_pa));
+                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE, 0, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+                fis_pa = physical_mapping(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE);
+                fis_pg_addr = (uintptr_t)(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE);
                 memset((void *)fis_pg_addr, 0, PAGE_4K_SIZE);
             }
 
@@ -385,7 +384,7 @@ int ahci_init_device(struct hba_port *port)
     wait_until(!(port->regs[HBA_RPxTFD] & (HBA_PxTFD_BSY)));
 
     // 预备DMA接收缓存，用于存放HBA传回的数据
-    uint16_t *data_in = (uint16_t *)phy_2_virt(allocate_frame());
+    uint16_t *data_in = (uint16_t *)kalloc(512);
 
     int slot = hba_prepare_cmd(port, &cmd_table, &cmd_header, data_in, 512);
 
@@ -403,12 +402,16 @@ int ahci_init_device(struct hba_port *port)
         kinfo("Found ATA device");
         sata_create_fis(cmd_fis, ATA_IDENTIFY_DEVICE, 0, 0);
     }
-    else
+    else if (port->regs[HBA_RPxSIG] == HBA_DEV_SIG_ATAPI)
     {
-        // ATAPI 一般为光驱，软驱，或者磁带机
+        // ATAPI 一般为光驱，软驱，或者磁带机0
         kinfo("Found ATAPI device");
         port->device->flags |= HBA_DEV_FATAPI;
         sata_create_fis(cmd_fis, ATA_IDENTIFY_PAKCET_DEVICE, 0, 0);
+    }
+    else
+    {
+        return 0;
     }
 
     // PxCI寄存器置位，告诉HBA这儿有个数据需要发送到SATA端口
@@ -481,15 +484,15 @@ int ahci_init_device(struct hba_port *port)
     scsi_parse_capacity(port->device, (uint32_t *)data_in);
 
 done:
-    achi_register_ops(port);
+    ahci_register_ops(port);
 
-    deallocate_frame(virt_2_phy(data_in));
+    kfree(data_in);
     kfree(cmd_table);
 
     return 1;
 
 fail:
-    deallocate_frame(virt_2_phy(data_in));
+    kfree(data_in);
     kfree(cmd_table);
 
     return 0;
@@ -502,7 +505,7 @@ int ahci_identify_device(struct hba_port *port)
     return ahci_init_device(port);
 }
 
-void achi_register_ops(struct hba_port *port)
+void ahci_register_ops(struct hba_port *port)
 {
     port->device->ops.identify = ahci_identify_device;
     if (!(port->device->flags & HBA_DEV_FATAPI))
