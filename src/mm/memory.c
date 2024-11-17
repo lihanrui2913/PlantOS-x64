@@ -303,3 +303,45 @@ void kfree(void *p)
     uint64_t *block = ((uint64_t *)(((uint64_t)p) - 8));
     *block = (*block >> 1) << 1;
 }
+
+uint64_t physical_mapping(uint64_t linear)
+{
+    uint64_t addressMask = 0x07FFFFFFFFFFF000;
+    uint16_t idx0 = (linear >> 39) & 0x1FF;
+    uint16_t idx1 = (linear >> 30) & 0x1FF;
+    uint16_t idx2 = (linear >> 21) & 0x1FF;
+    uint16_t idx3 = (linear >> 12) & 0x1FF;
+
+    uint64_t *L0 = phy_2_virt(get_cr3());
+    if (!(L0[idx0] & 1))
+    {
+        return ~(0ULL);
+    }
+
+    uint64_t *L1 = phy_2_virt((L0[idx0] & ~0xFFF));
+    if (!(L1[idx1] & 1))
+    {
+        return ~(0ULL);
+    }
+    if (L1[idx1] & 0x80)
+    {
+        return (L1[idx1] & addressMask) + (linear & ((1 << 30) - 1));
+    }
+
+    uint64_t *L2 = phy_2_virt((L1[idx1] & ~0xFFF));
+    if (!(L2[idx2] & 1))
+    {
+        return ~(0ULL);
+    }
+    if (L2[idx2] & 0x80)
+    {
+        return (L2[idx2] & addressMask) + (linear & ((1 << 21) - 1));
+    }
+
+    uint64_t *L3 = phy_2_virt((L2[idx2] & ~0xFFF));
+    if (!(L3[idx3] & 1))
+    {
+        return ~(0ULL);
+    }
+    return (L3[idx3] & addressMask) + (linear & ((1 << 12) - 1));
+}

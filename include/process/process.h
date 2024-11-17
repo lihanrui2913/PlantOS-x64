@@ -182,11 +182,11 @@ int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigne
  * @param next 下一个进程的pcb
  *
  */
-#define process_switch_mm(next_pcb)                                    \
-	do                                                                 \
-	{                                                                  \
-		asm volatile("movq %0, %%cr3	\n\t" ::"r"(next_pcb->mm->pgd) \
-					 : "memory");                                      \
+#define process_switch_mm(next_pcb)                                            \
+	do                                                                         \
+	{                                                                          \
+		__asm__ __volatile__("movq %0, %%cr3	\n\t" ::"r"(next_pcb->mm->pgd) \
+							 : "memory");                                      \
 	} while (0)
 
 // 获取当前cpu id
