@@ -5,6 +5,12 @@
 #define PORT_PCI_CONFIG_ADDRESS 0xcf8
 #define PORT_PCI_CONFIG_DATA 0xcfc
 
+#define PCI_RCMD_DISABLE_INTR (1 << 10)
+#define PCI_RCMD_FAST_B2B (1 << 9)
+#define PCI_RCMD_BUS_MASTER (1 << 2)
+#define PCI_RCMD_MM_ACCESS (1 << 1)
+#define PCI_RCMD_IO_ACCESS 1
+
 // pci设备结构信息的链表
 extern struct List *pci_device_structure_list;
 
@@ -12,7 +18,7 @@ extern struct List *pci_device_structure_list;
  * @brief 初始化pci驱动
  *
  */
-void pci_init();
+void init_pci();
 
 // pci设备结构的通用标题字段
 struct pci_device_structure_header_t

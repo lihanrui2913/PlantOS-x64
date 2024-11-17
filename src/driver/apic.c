@@ -103,7 +103,6 @@ void apic_io_apic_init()
  */
 void apic_init_ap_core_local_apic()
 {
-    kinfo("Initializing AP-core's local apic...");
     uint32_t eax, edx;
     // 启用xAPIC 和x2APIC
     __asm__ __volatile__("movq  $0x1b, %%rcx   \n\t" // 读取IA32_APIC_BASE寄存器

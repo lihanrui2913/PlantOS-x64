@@ -23,8 +23,6 @@ __attribute__((used, section(".limine_requests"))) static volatile struct limine
 
 void kap_main(struct limine_smp_info *cpu)
 {
-    ksuccess("AP successfully started...");
-
     struct idtr p;
     p.idt_vaddr = (uint64_t)IDT_Table;
     p.size = sizeof(IDT_Table) - 1;

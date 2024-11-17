@@ -68,6 +68,9 @@ uint64_t *get_cr3();
 #define IO_APIC_MAPPING_OFFSET 0xfec00000
 #define LOCAL_APIC_MAPPING_OFFSET 0xfee00000
 
+#define phy_2_virt_dev(paddr) (((uint64_t)paddr) + SPECIAL_MEMOEY_MAPPING_VIRT_ADDR_BASE)
+#define virt_2_phy_dev(paddr) (((uint64_t)paddr) - SPECIAL_MEMOEY_MAPPING_VIRT_ADDR_BASE)
+
 #define flush_tlb()                 \
     do                              \
     {                               \

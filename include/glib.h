@@ -18,6 +18,25 @@
 #define hlt() __asm__ __volatile__("hlt	\n\t")
 #define pause() __asm__ __volatile__("pause	\n\t")
 
+#define wait_until(cond) \
+    while (!(cond))      \
+        ;
+
+#define loop_until(cond) \
+    while (!(cond))      \
+        ;
+
+#define wait_until_expire(cond, max)          \
+    ({                                        \
+        unsigned int __wcounter__ = (max);    \
+        while (!(cond) && __wcounter__-- > 1) \
+            ;                                 \
+        __wcounter__;                         \
+    });
+
+#define CEIL(v, k) (((v) + (1 << (k)) - 1) >> (k))
+#define ICEIL(x, y) ((x) / (y) + ((x) % (y) != 0))
+
 // 链表数据结构
 struct List
 {

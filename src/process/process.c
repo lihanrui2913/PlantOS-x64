@@ -8,6 +8,7 @@
 #include <syscall/syscall.h>
 
 #include "driver/pci.h"
+#include "driver/ahci.h"
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
@@ -221,13 +222,18 @@ uint64_t initial_kernel_thread(uint64_t arg)
 {
     color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx, cpu_id = %d\n", arg, proc_current_cpu_id);
 
-    pci_init();
+    init_pci();
+    init_ahci();
 
-    // for (;;)
-    // {
-    //     sti();
-    //     hlt();
-    // }
+    struct hba_port *port = hba.ports[0];
+    uint8_t *buffer = kalloc(512);
+    port->device->ops.read_buffer(port, 64, buffer, 1);
+
+    for (int i = 0; i < 512; i++)
+    {
+        color_printk(ORANGE, BLACK, "%#02lx ", buffer[i]);
+    }
+    color_printk(ORANGE, BLACK, "\n");
 
     // 准备切换到用户态
     struct pt_regs *regs;

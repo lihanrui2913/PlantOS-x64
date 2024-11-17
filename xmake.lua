@@ -49,10 +49,10 @@ on_run(function(target)
     import("core.project.config")
 
     local flags = {"-M", "q35", "-m", "8G", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
-                   "-cdrom", config.buildir() .. "/PlantOS.iso", "--enable-kvm", "-device", "ahci,id=ahci", "-device",
-                   "ide-cd,bus=ahci.1"};
+                   "-cdrom", config.buildir() .. "/PlantOS.iso", "-cpu", "IvyBridge,+x2apic", "--enable-kvm", "-device",
+                   "ahci,id=ahci", "-device", "ide-cd,bus=ahci.0"};
 
-    local wsl = true;
+    local wsl = false;
 
     if wsl then
         os.runv("sudo qemu-system-x86_64", flags)

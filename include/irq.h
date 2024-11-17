@@ -7,11 +7,10 @@
 #define SMP_IRQ_NUM 10
 #define LOCAL_APIC_IRQ_NUM 10
 
-extern void (*interrupt_table[24])(void);
 extern void do_IRQ(struct pt_regs *regs, uint64_t number);
 
+extern void (*interrupt_table[24])(void);
 extern void (*SMP_interrupt_table[SMP_IRQ_NUM])(void);
-
 extern void (*local_apic_interrupt_table[LOCAL_APIC_IRQ_NUM])(void);
 
 /* ========= 中断向量分配表 ==========
