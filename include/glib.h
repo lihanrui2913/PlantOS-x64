@@ -37,9 +37,17 @@
 #define CEIL(v, k) (((v) + (1 << (k)) - 1) >> (k))
 #define ICEIL(x, y) ((x) / (y) + ((x) % (y) != 0))
 
+#define ABS(x) ((x) > 0 ? (x) : -(x)) // 绝对值
+// 最大最小值
+#define max(x, y) ((x > y) ? (x) : (y))
+#define min(x, y) ((x < y) ? (x) : (y))
+
 typedef long dev_t;
 typedef long idx_t;
+typedef long ino_t;
 typedef long err_t;
+typedef long off_t;
+typedef short mode_t;
 
 // 链表数据结构
 struct List
@@ -236,7 +244,7 @@ static inline char *strcpy(char *Dest, char *Src)
         string copy number bytes
 */
 
-static inline char *strncpy(char *Dest, char *Src, long Count)
+static inline char *strncpy(char *Dest, const char *Src, long Count)
 {
     __asm__ __volatile__("cld	\n\t"
                          "1:	\n\t"
@@ -339,7 +347,7 @@ static inline int strncmp(char *FirstPart, char *SecondPart, long Count)
     return __res;
 }
 
-static inline int strlen(char *String)
+static inline int strlen(const char *String)
 {
     register int __res;
     __asm__ __volatile__("cld	\n\t"
@@ -445,4 +453,87 @@ static inline unsigned long rdmsr(unsigned long address)
 static inline void wrmsr(unsigned long address, unsigned long value)
 {
     __asm__ __volatile__("wrmsr	\n\t" ::"d"(value >> 32), "a"(value & 0xffffffff), "c"(address) : "memory");
+}
+
+/**
+ * @brief 验证地址空间是否为用户地址空间
+ *
+ * @param addr_start 地址起始值
+ * @param length 地址长度
+ * @return true
+ * @return false
+ */
+static inline bool verify_area(uint64_t addr_start, uint64_t length)
+{
+    if ((addr_start + length) <= 0x00007fffffffffffUL) // 用户程序可用的的地址空间应<= 0x00007fffffffffffUL
+        return true;
+    else
+        return false;
+}
+
+/**
+ * @brief 从用户空间搬运数据到内核空间
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param size 搬运的大小
+ * @return uint64_t
+ */
+static inline uint64_t copy_from_user(void *dst, void *src, uint64_t size)
+{
+    uint64_t tmp0, tmp1;
+    if (!verify_area((uint64_t)src, size))
+        return 0;
+
+    /**
+     * @brief 先每次搬运8 bytes，剩余就直接一个个byte搬运
+     *
+     */
+    __asm__ __volatile__("rep   \n\t"
+                 "movsq  \n\t"
+                 "movq %3, %0   \n\t"
+                 "rep   \n\t"
+                 "movsb \n\t"
+                 : "=&c"(size), "=&D"(tmp0), "=&S"(tmp1)
+                 : "r"(size & 7), "0"(size >> 3), "1"(dst), "2"(src)
+                 : "memory");
+    return size;
+}
+
+/**
+ * @brief 从内核空间搬运数据到用户空间
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param size 搬运的大小
+ * @return uint64_t
+ */
+static inline uint64_t copy_to_user(void *dst, void *src, uint64_t size)
+{
+    uint64_t tmp0, tmp1;
+    if (verify_area((uint64_t)src, size))
+        return 0;
+
+    /**
+     * @brief 先每次搬运8 bytes，剩余就直接一个个byte搬运
+     *
+     */
+    __asm__ __volatile__("rep   \n\t"
+                 "movsq  \n\t"
+                 "movq %3, %0   \n\t"
+                 "rep   \n\t"
+                 "movsb \n\t"
+                 : "=&c"(size), "=&D"(tmp0), "=&S"(tmp1)
+                 : "r"(size & 7), "0"(size >> 3), "1"(dst), "2"(src)
+                 : "memory");
+    return size;
+}
+
+static inline long strncpy_from_user(char *dst, const char *src, unsigned long size)
+{
+    if (!verify_area((uint64_t)src, size))
+        return 0;
+
+    strncpy(dst, src, size);
+    return size;
 }

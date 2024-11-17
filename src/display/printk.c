@@ -503,8 +503,8 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         }
         if (pos.Yposition >= (pos.YResolution / pos.YCharSize))
         {
-            scroll(true, pos.YCharSize, false);
-            pos.Yposition--;
+            pos.Xposition = 0;
+            pos.Yposition = 0;
         }
     }
 

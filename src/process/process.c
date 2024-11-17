@@ -7,9 +7,13 @@
 #include <mm/memory.h>
 #include <syscall/syscall.h>
 
+#include "elf.h"
+
 #include "driver/device.h"
 #include "driver/pci.h"
 #include "driver/ahci.h"
+#include "fs/fs.h"
+#include "fs/fat32/fat32.h"
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
@@ -104,10 +108,161 @@ void __switch_to(struct process_control_block *prev, struct process_control_bloc
 }
 #pragma GCC pop_options
 
-void user_level_function()
+/**
+ * @brief 打开要执行的程序文件
+ *
+ * @param path
+ * @return struct vfs_file_t*
+ */
+struct vfs_file_t *process_open_exec_file(char *path)
 {
-    for (;;)
-        pause();
+    struct vfs_dir_entry_t *dentry = NULL;
+    struct vfs_file_t *filp = NULL;
+
+    dentry = vfs_path_walk(path, 0);
+
+    if (dentry == NULL)
+        return (void *)-ENOENT;
+
+    if (dentry->dir_inode->attribute == VFS_ATTR_DIR)
+        return (void *)-ENOTDIR;
+
+    filp = (struct vfs_file_t *)kalloc(sizeof(struct vfs_file_t));
+    if (filp == NULL)
+        return (void *)-ENOMEM;
+
+    filp->position = 0;
+    filp->mode = 0;
+    filp->dEntry = dentry;
+    filp->mode = ATTR_READ_ONLY;
+    filp->file_ops = dentry->dir_inode->file_ops;
+
+    return filp;
+}
+
+/**
+ * @brief 加载elf格式的程序文件到内存中，并设置regs
+ *
+ * @param regs 寄存器
+ * @param path 文件路径
+ * @return int
+ */
+static int process_load_elf_file(struct pt_regs *regs, char *path)
+{
+    int retval = 0;
+    struct vfs_file_t *filp = process_open_exec_file(path);
+
+    if ((long)filp <= 0 && (long)filp >= -255)
+    {
+        return (unsigned long)filp;
+    }
+
+    void *buf = kalloc(PAGE_4K_SIZE);
+    memset(buf, 0, PAGE_4K_SIZE);
+    uint64_t pos = 0;
+    pos = filp->file_ops->lseek(filp, 0, SEEK_SET);
+    retval = filp->file_ops->read(filp, (char *)buf, sizeof(Elf64_Ehdr), &pos);
+    kinfo("*buf = %#018lx", *(uint64_t *)buf);
+    retval = 0;
+    if (!elf_check(buf))
+    {
+        kerror("Not an ELF file: %s", path);
+        retval = -ENOTSUP;
+        goto load_elf_failed;
+    }
+    // 暂时只支持64位的文件
+    if (((Elf32_Ehdr *)buf)->e_ident[EI_CLASS] != ELFCLASS64)
+    {
+        kdebug("((Elf32_Ehdr *)buf)->e_ident[EI_CLASS]=%d", ((Elf32_Ehdr *)buf)->e_ident[EI_CLASS]);
+        retval = -ENOTSUP;
+        goto load_elf_failed;
+    }
+    Elf64_Ehdr ehdr = *(Elf64_Ehdr *)buf;
+    // 暂时只支持AMD64架构
+    if (ehdr.e_machine != EM_AMD64)
+    {
+        kerror("e_machine=%d", ehdr.e_machine);
+        retval = -ENOTSUP;
+        goto load_elf_failed;
+    }
+
+    if (ehdr.e_type != ET_EXEC)
+    {
+        kerror("Not executable file! filename=%s\tehdr->e_type=%d", path, ehdr.e_type);
+        retval = -ENOTSUP;
+        goto load_elf_failed;
+    }
+    // kdebug("filename=%s:\te_entry=%#018lx", path, ehdr.e_entry);
+    regs->rip = ehdr.e_entry;
+
+    // kdebug("ehdr.e_phoff=%#018lx\t ehdr.e_phentsize=%d, ehdr.e_phnum=%d", ehdr.e_phoff, ehdr.e_phentsize, ehdr.e_phnum);
+    // 将指针移动到program header处
+    pos = ehdr.e_phoff;
+    // 读取所有的phdr
+    pos = filp->file_ops->lseek(filp, pos, SEEK_SET);
+    filp->file_ops->read(filp, (char *)buf, (uint64_t)ehdr.e_phentsize * (uint64_t)ehdr.e_phnum, &pos);
+    if ((unsigned long)filp <= 0)
+    {
+        kdebug("(unsigned long)filp=%d", (long)filp);
+        retval = -ENOEXEC;
+        goto load_elf_failed;
+    }
+    Elf64_Phdr *phdr = buf;
+
+    // 将程序加载到内存中
+    for (int i = 0; i < ehdr.e_phnum; ++i, ++phdr)
+    {
+        // kdebug("phdr[%d] phdr->p_offset=%#018lx phdr->p_vaddr=%#018lx phdr->p_memsz=%ld phdr->p_filesz=%ld  phdr->p_type=%d", i, phdr->p_offset, phdr->p_vaddr, phdr->p_memsz, phdr->p_filesz, phdr->p_type);
+
+        // 不是可加载的段
+        if (phdr->p_type != PT_LOAD)
+            continue;
+
+        int64_t remain_mem_size = phdr->p_memsz;
+        int64_t remain_file_size = phdr->p_filesz;
+        pos = phdr->p_offset;
+
+        uint64_t virt_base = phdr->p_vaddr;
+        // kdebug("virt_base = %#018lx, &memory_management_struct=%#018lx", virt_base, &memory_management_struct);
+
+        while (remain_mem_size > 0)
+        {
+
+            // todo: 改用slab分配4K大小内存块并映射到4K页
+            if (!mm_check_mapped((uint64_t)current_pcb->mm->pgd, virt_base)) // 未映射，则新增物理页
+            {
+                vmm_mmap((uint64_t)current_pcb->mm->pgd, true, virt_base, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_R_W | PAGE_PRESENT, true, true);
+                memset((void *)virt_base, 0, PAGE_4K_SIZE);
+            }
+            pos = filp->file_ops->lseek(filp, pos, SEEK_SET);
+            int64_t val = 0;
+            if (remain_file_size != 0)
+            {
+                int64_t to_trans = (remain_file_size > PAGE_4K_SIZE) ? PAGE_4K_SIZE : remain_file_size;
+                val = filp->file_ops->read(filp, (char *)virt_base, to_trans, &pos);
+            }
+
+            if (val < 0)
+                goto load_elf_failed;
+
+            remain_mem_size -= PAGE_4K_SIZE;
+            remain_file_size -= val;
+            virt_base += PAGE_4K_SIZE;
+        }
+    }
+
+    // 分配2MB的栈内存空间
+    regs->rsp = current_pcb->mm->stack_start;
+    regs->rbp = current_pcb->mm->stack_start;
+
+    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, current_pcb->mm->stack_start - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_R_W | PAGE_PRESENT, true, true);
+    // 清空栈空间
+    memset((void *)(current_pcb->mm->stack_start - PAGE_4K_SIZE), 0, PAGE_4K_SIZE);
+
+load_elf_failed:;
+    if (buf != NULL)
+        kfree(buf);
+    return retval;
 }
 
 /**
@@ -139,7 +294,7 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
         memset(phy_2_virt(new_mms->pgd), 0, PAGE_4K_SIZE / 2);
 
         // 拷贝内核空间的页表指针
-        memcpy(phy_2_virt(initial_proc[proc_current_cpu_id]) + 256, phy_2_virt(new_mms->pgd) + 256, PAGE_4K_SIZE / 2);
+        memcpy(phy_2_virt(new_mms->pgd) + 256, phy_2_virt(initial_proc[proc_current_cpu_id]) + 256, PAGE_4K_SIZE / 2);
     }
 
     // 设置用户栈和用户堆的基地址
@@ -193,6 +348,16 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
         regs->rsi = (uint64_t)dst_argv;
     }
 
+    int ret = process_load_elf_file(regs, path);
+    if (ret < 0)
+    {
+        kerror("Cannot load elf file: %s", path);
+        for (;;)
+        {
+            hlt();
+        }
+    }
+
     regs->cs = USER_CS | 0x3;
     regs->ds = USER_DS | 0x3;
     regs->ss = USER_DS | 0x3;
@@ -200,12 +365,6 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
     regs->rax = 1;
     regs->es = 0;
     regs->rbp = regs->rsp = current_pcb->mm->stack_start;
-    regs->rip = 0x800000;
-
-    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, 0x800000, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
-    memcpy(user_level_function, (void *)0x800000, PAGE_4K_SIZE);
-
-    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, stack_start_addr - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_PRESENT | PAGE_R_W, true, false);
 
     return 0;
 }
@@ -226,6 +385,9 @@ uint64_t initial_kernel_thread(uint64_t arg)
     init_device();
     init_pci();
     init_ahci();
+
+    init_fs();
+    init_fat32();
 
     // 准备切换到用户态
     struct pt_regs *regs;

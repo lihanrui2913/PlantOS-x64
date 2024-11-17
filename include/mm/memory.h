@@ -125,4 +125,6 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
 
 void *kalloc(uint64_t size);
 void kfree(void *p);
+
 uint64_t physical_mapping(uint64_t linear);
+bool mm_check_mapped(uint64_t page_table_phys_addr, uint64_t virt_addr);

@@ -179,7 +179,10 @@ int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigne
 /**
  * @brief 切换页表
  * @param prev 前一个进程的pcb
- * @param next 下一个进程的pcb
+ * @param next 下一个进程的pcb// 进程拥有的文件描述符的指针数组
+	// todo: 改用动态指针数组
+	struct vfs_file_t *fds[PROC_MAX_FD_NUM];
+
  *
  */
 #define process_switch_mm(next_pcb)                                            \

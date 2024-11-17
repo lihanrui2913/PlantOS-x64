@@ -345,3 +345,50 @@ uint64_t physical_mapping(uint64_t linear)
     }
     return (L3[idx3] & addressMask) + (linear & ((1 << 12) - 1));
 }
+
+/**
+ * @brief 检测指定地址是否已经被映射
+ *
+ * @param page_table_phys_addr 页表的物理地址
+ * @param virt_addr 要检测的地址
+ * @return true 已经被映射
+ * @return false
+ */
+bool mm_check_mapped(uint64_t page_table_phys_addr, uint64_t virt_addr)
+{
+    uint64_t *tmp;
+
+    tmp = phy_2_virt((uint64_t *)((uint64_t)page_table_phys_addr & (~0xfffUL)) + ((virt_addr >> PAGE_GDT_SHIFT) & 0x1ff));
+
+    // pml4页表项为0
+    if (*tmp == 0)
+        return 0;
+
+    tmp = phy_2_virt((uint64_t *)(*tmp & (~0xfffUL)) + ((virt_addr >> PAGE_1G_SHIFT) & 0x1ff));
+
+    // pdpt页表项为0
+    if (*tmp == 0)
+        return 0;
+
+    // 读取pdt页表项
+    tmp = phy_2_virt(((uint64_t *)(*tmp & (~0xfffUL)) + (((uint64_t)(virt_addr) >> PAGE_2M_SHIFT) & 0x1ff)));
+
+    // pde页表项为0
+    if (*tmp == 0)
+        return 0;
+
+    if (*tmp & (1 << 7))
+    {
+        // 当前为2M物理页
+        return true;
+    }
+    else
+    {
+        // 存在4级页表
+        tmp = phy_2_virt(((uint64_t *)(*tmp & (~0xfffUL)) + (((uint64_t)(virt_addr) >> PAGE_4K_SHIFT) & 0x1ff)));
+        if (*tmp != 0)
+            return true;
+        else
+            return false;
+    }
+}
