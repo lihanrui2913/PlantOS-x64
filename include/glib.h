@@ -37,6 +37,10 @@
 #define CEIL(v, k) (((v) + (1 << (k)) - 1) >> (k))
 #define ICEIL(x, y) ((x) / (y) + ((x) % (y) != 0))
 
+typedef long dev_t;
+typedef long idx_t;
+typedef long err_t;
+
 // 链表数据结构
 struct List
 {

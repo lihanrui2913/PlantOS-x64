@@ -7,6 +7,7 @@
 #include <mm/memory.h>
 #include <syscall/syscall.h>
 
+#include "driver/device.h"
 #include "driver/pci.h"
 #include "driver/ahci.h"
 
@@ -222,21 +223,9 @@ uint64_t initial_kernel_thread(uint64_t arg)
 {
     color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx, cpu_id = %d\n", arg, proc_current_cpu_id);
 
+    init_device();
     init_pci();
     init_ahci();
-
-    uint8_t buf[512];
-    memset(buf, 0, 512);
-    struct hba_port *port = hba.ports[0];
-    int ret = port->device->ops.read_buffer(port, 0, buf, 512);
-    if (!ret)
-        kerror("Cannot read disk");
-
-    for (int i = 0; i < 512; i++)
-    {
-        color_printk(ORANGE, BLACK, "%#04lx ", buf[i]);
-    }
-    color_printk(BLACK, BLACK, "\n");
 
     // 准备切换到用户态
     struct pt_regs *regs;

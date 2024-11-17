@@ -1,3 +1,4 @@
+#include "driver/device.h"
 #include "driver/ahci.h"
 #include "driver/apic.h"
 #include "irq.h"
@@ -257,6 +258,18 @@ void __hba_reset_port(hba_reg_t *port_reg)
 
 int ahci_init_device(struct hba_port *port);
 
+int ahci_read(void *dev, void *buf, size_t count, idx_t idx, int flags)
+{
+    struct hba_port *port = (struct hba_port *)dev;
+    port->device->ops.read_buffer(port, idx, buf, count);
+}
+
+int ahci_write(void *dev, void *buf, size_t count, idx_t idx, int flags)
+{
+    struct hba_port *port = (struct hba_port *)dev;
+    port->device->ops.write_buffer(port, idx, buf, count);
+}
+
 void init_ahci()
 {
     pci_get_device_structure(0x01, 0x06, ahci_dev, &ahci_count);
@@ -485,6 +498,7 @@ int ahci_init_device(struct hba_port *port)
 
 done:
     ahci_register_ops(port);
+    device_install(DEV_BLOCK, DEV_DISK, port, "AHCI DISK", 0, NULL, ahci_read, ahci_write);
 
     kfree(data_in);
     kfree(cmd_table);
