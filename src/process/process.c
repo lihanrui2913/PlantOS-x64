@@ -14,6 +14,7 @@
 #include "driver/ahci.h"
 #include "fs/fs.h"
 #include "fs/fat32/fat32.h"
+#include "driver/ps2_keyboard.h"
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
@@ -390,6 +391,8 @@ uint64_t initial_kernel_thread(uint64_t arg)
 
     init_fs();
     init_fat32();
+
+    init_ps2keyboard();
 
     // 准备切换到用户态
     struct pt_regs *regs;

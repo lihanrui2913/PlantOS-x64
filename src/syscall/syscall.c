@@ -71,6 +71,8 @@ SYSCALL_DEFINER(sys_write)
     return ret;
 }
 
+#include "driver/ps2_keyboard.h"
+
 SYSCALL_DEFINER(sys_open)
 {
     char *filename = (char *)(regs->rdi);
@@ -182,7 +184,12 @@ SYSCALL_DEFINER(sys_open)
 
     // todo: 接入devfs
     // 特判一下是否为键盘文件
-    file_ptr->file_ops = dentry->dir_inode->file_ops;
+    if (dentry->dir_inode->attribute & VFS_ATTR_DEVICE)
+    {
+        file_ptr->file_ops = &ps2_keyboard_fops; // 如果是设备文件，暂时认为它是键盘文件
+    }
+    else
+        file_ptr->file_ops = dentry->dir_inode->file_ops;
 
     // 如果文件系统实现了打开文件的函数
     if (file_ptr->file_ops && file_ptr->file_ops->open)
@@ -590,6 +597,9 @@ void init_syscall()
     system_call_table[SYS_FORK] = sys_fork;
     system_call_table[SYS_VFORK] = sys_vfork;
     system_call_table[SYS_PRINT] = sys_print;
+    system_call_table[SYS_EXECVE] = sys_execve;
+    system_call_table[SYS_WAIT4] = sys_wait4;
+    system_call_table[SYS_EXIT] = sys_exit;
 
     set_system_trap_gate(0x80, 0, syscall_int);
 }
