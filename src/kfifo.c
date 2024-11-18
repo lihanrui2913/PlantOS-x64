@@ -59,13 +59,13 @@ uint32_t kfifo_in(struct kfifo_t *fifo, void *from, uint32_t size)
     if (fifo->in_offset + size > fifo->total_size) // 发生回环
     {
         uint32_t tmp = fifo->total_size - fifo->in_offset;
-        memcpy(fifo->buffer + fifo->in_offset, from, tmp);
-        memcpy(fifo->buffer, from + tmp, size - tmp);
+        memcpy(from, fifo->buffer + fifo->in_offset, tmp);
+        memcpy(from + tmp, fifo->buffer, size - tmp);
         fifo->in_offset = size - tmp;
     }
     else // 不发生回环
     {
-        memcpy(fifo->buffer + fifo->in_offset, from, size);
+        memcpy(from, fifo->buffer + fifo->in_offset, size);
         fifo->in_offset += size;
     }
 
@@ -93,13 +93,13 @@ uint32_t kfifo_out(struct kfifo_t *fifo, void *to, uint32_t size)
     if (fifo->out_offset + size > fifo->total_size) // 发生回环
     {
         uint32_t tmp = fifo->total_size - fifo->out_offset;
-        memcpy(to, fifo->buffer + fifo->out_offset, tmp);
-        memcpy(to + tmp, fifo->buffer, size - tmp);
+        memcpy(fifo->buffer + fifo->out_offset, to, tmp);
+        memcpy(fifo->buffer, to + tmp, size - tmp);
         fifo->out_offset = size - tmp;
     }
     else // 未发生回环
     {
-        memcpy(to, fifo->buffer + fifo->out_offset, size);
+        memcpy(fifo->buffer + fifo->out_offset, to, size);
         fifo->out_offset += size;
     }
 
@@ -127,12 +127,12 @@ uint32_t kfifo_out_peek(struct kfifo_t *fifo, void *to, uint32_t size)
     if (fifo->out_offset + size > fifo->total_size) // 发生回环
     {
         uint32_t tmp = fifo->total_size - fifo->out_offset;
-        memcpy(to, fifo->buffer + fifo->out_offset, tmp);
-        memcpy(to + tmp, fifo->buffer, size - tmp);
+        memcpy(fifo->buffer + fifo->out_offset, to, tmp);
+        memcpy(fifo->buffer, to + tmp, size - tmp);
     }
     else // 未发生回环
     {
-        memcpy(to, fifo->buffer + fifo->out_offset, size);
+        memcpy(fifo->buffer + fifo->out_offset, to, size);
     }
 
     return size;
