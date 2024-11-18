@@ -1,16 +1,6 @@
 #pragma once
 
-#include "asm.h"
-#include "glib.h"
-#include "ptrace.h"
-
-void init_syscall();
-
-#define SYSCALL_DEFINER(name) uint64_t SYMBOL_NAME(name)(struct pt_regs * regs)
-
-typedef uint64_t (*syscall_handler_t)(struct pt_regs *regs);
-
-#define MAX_SYSCALL_NUM 1024
+#include "types.h"
 
 #define SYS_READ 0
 #define SYS_WRITE 1
@@ -51,4 +41,4 @@ typedef uint64_t (*syscall_handler_t)(struct pt_regs *regs);
 #define SYS_PRINT 513
 #define SYS_SBRK 514
 
-uint64_t enter_syscall_int(uint64_t rax, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6);
+uint64_t syscall_invoke(uint64_t rax, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6);

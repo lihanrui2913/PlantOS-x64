@@ -1237,6 +1237,7 @@ struct vfs_filesystem_type_t fat32_fs_type =
         .read_superblock = fat32_read_superblock,
         .next = NULL,
 };
+
 void init_fat32()
 {
     kinfo("Initializing FAT32...");

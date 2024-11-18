@@ -46,6 +46,8 @@ void kmain(void)
 #include "sched/sched.h"
 #include "syscall/syscall.h"
 #include "driver/apic_timer.h"
+#include "softirq.h"
+#include "timer.h"
 
 void kstage2(void)
 {
@@ -72,7 +74,10 @@ void kstage2(void)
 
     acpi_init();
 
+    init_softirq();
     init_irq();
+
+    init_timer();
 
     HPET_init();
     HPET_measure_freq();

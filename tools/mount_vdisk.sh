@@ -12,5 +12,3 @@ echo ${LOOP_DEVICE}p1
 
 mkdir -p mnt_point
 mount ${LOOP_DEVICE}p1 mnt_point
-
-sudo cp ./init.elf mnt_point

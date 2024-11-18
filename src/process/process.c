@@ -162,7 +162,6 @@ static int process_load_elf_file(struct pt_regs *regs, char *path)
     uint64_t pos = 0;
     pos = filp->file_ops->lseek(filp, 0, SEEK_SET);
     retval = filp->file_ops->read(filp, (char *)buf, sizeof(Elf64_Ehdr), &pos);
-    kinfo("*buf = %#018lx", *(uint64_t *)buf);
     retval = 0;
     if (!elf_check(buf))
     {
@@ -300,6 +299,9 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
     // 设置用户栈和用户堆的基地址
     unsigned long stack_start_addr = 0x6ffff0a00000UL;
     const uint64_t brk_start_addr = 0x700000000000UL;
+
+    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, stack_start_addr - PAGE_2M_SIZE, 0, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_U_S, true, true);
+    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, brk_start_addr, 0, PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_U_S, true, true);
 
     process_switch_mm(current_pcb);
 

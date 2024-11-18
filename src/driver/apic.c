@@ -376,6 +376,9 @@ void apic_init()
 
     apic_io_apic_init();
 }
+
+#include "softirq.h"
+
 /**
  * @brief 中断服务程序
  *
@@ -439,6 +442,8 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
     {
         kwarn("do IRQ receive: %d", number);
     }
+
+    do_softirq();
 
     if (current_pcb->flags & PF_NEED_SCHED)
     {

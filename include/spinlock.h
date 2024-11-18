@@ -42,6 +42,23 @@ static inline void spin_unlock(spinlock_t *lock)
 }
 
 /**
+ * @brief 尝试加锁
+ *
+ * @param lock
+ * @return long 锁变量的值（1为成功加锁，0为加锁失败）
+ */
+static inline long spin_trylock(spinlock_t *lock)
+{
+    uint64_t tmp_val = 0;
+    // 交换tmp_val和lock的值，若tmp_val==1则证明加锁成功
+    __asm__ __volatile__("lock xchg %%bx, %1  \n\t" // 确保只有1个进程能得到锁
+                         : "=q"(tmp_val), "=m"(lock->lock)
+                         : "b"(0)
+                         : "memory");
+    return tmp_val;
+}
+
+/**
  * @brief 初始化自旋锁
  *
  * @param lock

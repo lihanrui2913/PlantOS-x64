@@ -1,5 +1,5 @@
 #include "mm/memory.h"
-#include "display/printk.h"
+#include "display/kprint.h"
 
 /* PMM */
 
@@ -391,4 +391,33 @@ bool mm_check_mapped(uint64_t page_table_phys_addr, uint64_t virt_addr)
         else
             return false;
     }
+}
+
+#include "process/process.h"
+
+/**
+ * @brief 调整堆区域的大小（暂时只能增加堆区域）
+ *
+ * @todo 缩小堆区域
+ * @param old_brk_end_addr 原本的堆内存区域的结束地址
+ * @param offset 新的地址相对于原地址的偏移量
+ * @return uint64_t
+ */
+uint64_t mm_do_brk(uint64_t old_brk_end_addr, int64_t offset)
+{
+
+    uint64_t end_addr = PAGE_2M_ALIGN(old_brk_end_addr + offset);
+    if (offset >= 0)
+    {
+        for (uint64_t i = old_brk_end_addr; i < end_addr; i += PAGE_2M_SIZE)
+        {
+            vmm_mmap((uint64_t)(current_pcb->mm->pgd), true, i, allocate_frame(), PAGE_4K_SIZE, 0, true, false);
+        }
+        current_pcb->mm->brk_end = end_addr;
+    }
+    else
+    {
+        kwarn("mm_do_brk(): offset < 0");
+    }
+    return end_addr;
 }

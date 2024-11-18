@@ -13,20 +13,20 @@ static void pci_checkBus(uint8_t bus);
  * @brief 将设备信息结构体加到链表里面
  *
  */
-#define ADD_DEVICE_STRUCT_TO_LIST(ret)                                \
-    do                                                                \
-    {                                                                 \
-        if (count_device_list > 0)                                    \
-        {                                                             \
-            ++count_device_list;                                      \
-            list_add(pci_device_structure_list, &(ret->header.list)); \
-        }                                                             \
-        else                                                          \
-        {                                                             \
-            ++count_device_list;                                      \
-            list_init(&(ret->header.list));                           \
-            pci_device_structure_list = &(ret->header.list);          \
-        }                                                             \
+#define ADD_DEVICE_STRUCT_TO_LIST(ret)                         \
+    do                                                         \
+    {                                                          \
+        if (count_device_list > 0)                             \
+        {                                                      \
+            ++count_device_list;                               \
+            list_add(pci_device_structure_list, &(ret->list)); \
+        }                                                      \
+        else                                                   \
+        {                                                      \
+            ++count_device_list;                               \
+            list_init(&(ret->list));                           \
+            pci_device_structure_list = &(ret->list);          \
+        }                                                      \
     } while (0);
 
 /**
@@ -284,7 +284,7 @@ void *pci_read_header(int *type, uint8_t bus, uint8_t slot, uint8_t func, bool a
         pci_read_general_device_header((struct pci_device_structure_general_device_t *)ret, bus, slot, func);
         if (add_to_list)
         {
-            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_general_device_t *)ret));
+            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_header_t *)ret));
         }
 
         *type = 0x0;
@@ -295,7 +295,7 @@ void *pci_read_header(int *type, uint8_t bus, uint8_t slot, uint8_t func, bool a
         pci_read_pci_to_pci_bridge_header((struct pci_device_structure_pci_to_pci_bridge_t *)ret, bus, slot, func);
         if (add_to_list)
         {
-            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_pci_to_pci_bridge_t *)ret));
+            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_header_t *)ret));
         }
 
         *type = 0x1;
@@ -306,7 +306,7 @@ void *pci_read_header(int *type, uint8_t bus, uint8_t slot, uint8_t func, bool a
         pci_read_pci_to_cardbus_bridge_header((struct pci_device_structure_pci_to_cardbus_bridge_t *)ret, bus, slot, func);
         if (add_to_list)
         {
-            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_pci_to_cardbus_bridge_t *)ret));
+            ADD_DEVICE_STRUCT_TO_LIST(((struct pci_device_structure_header_t *)ret));
         }
         *type = 0x2;
         return ret;

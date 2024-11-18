@@ -7,6 +7,8 @@ set_optimize("none")
 set_policy("run.autobuild", true)
 set_policy("build.optimization.lto", true)
 
+-- About KERNEL
+
 target("kernel")
 set_languages("c23")
 set_kind("binary")
@@ -17,7 +19,7 @@ add_includedirs("include")
 add_files("src/**.S")
 add_files("src/**.c")
 
-add_cflags("-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")
+add_cflags("-c", "-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")
 add_ldflags("-nostdlib", "-static", "-T", "assets/linker.ld", {
     force = true
 })
@@ -26,9 +28,46 @@ if is_mode("release") then
     set_symbols("debug")
 end
 
+-- About LIBC
+
+target("c")
+set_languages("c23")
+set_kind("static")
+set_toolchains("gcc")
+set_default(false)
+
+add_includedirs("usr/libc")
+add_files("usr/libc/**.c")
+
+add_cflags("-c", "-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-nostdinc")
+add_ldflags("-nostdlib", "-static")
+
+if is_mode("release") then
+    set_symbols("debug")
+end
+
+-- About INIT
+
+target("init")
+add_deps("c")
+set_languages("c23")
+set_kind("binary")
+set_toolchains("gcc")
+set_default(false)
+
+add_includedirs("usr/libc")
+add_files("usr/apps/init/**.c")
+
+add_cflags("-c", "-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-nostdinc")
+
+if is_mode("release") then
+    set_symbols("debug")
+end
+
 target("iso")
 set_kind("phony")
 add_deps("kernel")
+add_deps("init")
 set_default(true)
 
 on_build(function(target)
@@ -45,8 +84,11 @@ on_build(function(target)
     os.run("assets/limine/limine bios-install %s", iso_file)
     print("ISO image created at: %s", iso_file)
 
+    local target_init = project.target("init")
+
     os.run("bash tools/create_hdd_image.sh");
     os.run("sudo bash tools/mount_vdisk.sh");
+    os.run("sudo cp " .. target_init:targetfile() .. " mnt_point/init.elf")
     os.run("sudo bash tools/umount_vdisk.sh");
 end)
 
