@@ -19,8 +19,8 @@ add_includedirs("include")
 add_files("src/**.S")
 add_files("src/**.c")
 
-add_cflags("-c", "-g", "-O0", "-m64", "-fno-builtin", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")
-add_ldflags("-nostdlib", "-static", "-T", "assets/linker.ld", {
+add_cflags("-c", "-g", "-O0", "-m64", "-fno-builtin", "-fpic", "-fno-stack-protector", "-nostdlib", "-mcmodel=large")
+add_ldflags("-nostdlib", "-T", "assets/linker.ld", {
     force = true
 })
 
@@ -95,7 +95,7 @@ end)
 on_run(function(target)
     import("core.project.config")
 
-    local flags = {"-M", "q35", "-m", "8G", "-smp", "4", "-bios", "/usr/share/ovmf/OVMF.fd", "-cdrom",
+    local flags = {"-M", "q35", "-m", "4G", "-smp", "4", "-bios", "/usr/share/ovmf/OVMF.fd", "-cdrom",
                    config.buildir() .. "/PlantOS.iso", "-drive",
                    "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img", "-cpu", "IvyBridge,+x2apic",
                    "-device", "ahci,id=ahci", "-device", "ide-hd,drive=root,bus=ahci.1", "--enable-kvm"};

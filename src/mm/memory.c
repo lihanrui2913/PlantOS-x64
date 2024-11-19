@@ -124,7 +124,7 @@ uint64_t heap = HEAP_START;
 
 void init_vmm()
 {
-    for (uint64_t i = HEAP_START; i < HEAP_START + HEAP_SIZE + PAGE_4K_SIZE; i += PAGE_4K_SIZE)
+    for (uint64_t i = HEAP_START; i < HEAP_START + HEAP_SIZE; i += PAGE_4K_SIZE)
     {
         uint64_t phys = allocate_frame();
         // color_printk(WHITE, BLACK, "mapping heap: %#018lx -> %#018lx\n", i, phys);
@@ -188,6 +188,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
         if (*pml4e_ptr == 0)
         {
             uint64_t *addr = (uint64_t *)allocate_frame();
+            memset(phy_2_virt(addr), 0, PAGE_4K_SIZE);
             set_pml4t(pml4e_ptr, mk_pml4t(addr, (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
         }
 
@@ -204,6 +205,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
             if (*pdpte_ptr == 0)
             {
                 uint64_t *addr = (uint64_t *)allocate_frame();
+                memset(phy_2_virt(addr), 0, PAGE_4K_SIZE);
                 set_pdpt(pdpte_ptr, mk_pdpt(addr, (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
             }
 
@@ -225,6 +227,7 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
                 {
                     // 创建四级页表
                     uint64_t *addr = (uint64_t *)allocate_frame();
+                    memset(phy_2_virt(addr), 0, PAGE_4K_SIZE);
                     set_pdt(pde_ptr, mk_pdt(addr, (user ? (PAGE_PRESENT | PAGE_R_W | PAGE_U_S) : (PAGE_PRESENT | PAGE_R_W))));
                 }
 
