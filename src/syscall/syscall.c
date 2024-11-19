@@ -173,6 +173,11 @@ SYSCALL_DEFINER(sys_open)
     // if ((flags & O_DIRECTORY) && dentry->dir_inode->attribute == VFS_ATTR_DIR)
     //     return -EISDIR;
 
+    if (filename[0] == '/' && filename[1] == 'd' && filename[2] == 'e' && filename[3] == 'v' && filename[4] == '/')
+    {
+        dentry->dir_inode->attribute |= VFS_ATTR_DEVICE;
+    }
+
     // 创建文件描述符
     struct vfs_file_t *file_ptr = (struct vfs_file_t *)kalloc(sizeof(struct vfs_file_t));
     memset(file_ptr, 0, sizeof(struct vfs_file_t));

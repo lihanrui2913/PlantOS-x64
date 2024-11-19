@@ -274,6 +274,8 @@ void init_ahci()
 {
     pci_get_device_structure(0x01, 0x06, ahci_dev, &ahci_count);
 
+    cli();
+
     for (int i = 0; i < ahci_count; i++)
     {
         struct pci_device_structure_general_device_t *ahci = (struct pci_device_structure_general_device_t *)ahci_dev[i];
@@ -383,6 +385,8 @@ void init_ahci()
             }
         }
     }
+
+    sti();
 
     ksuccess("AHCI initialized");
 }

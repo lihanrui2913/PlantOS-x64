@@ -1,10 +1,19 @@
 #include "stdio.h"
+#include "fcntl.h"
+#include "unistd.h"
+#include "keyboard.h"
 
 int main()
 {
-    printf("Hello world!!!");
-    while (1)
-        __asm__("pause");
+    printf("Hello world!!!\n");
 
-    return 0;
+    int fd = open("/dev/kbd.dev", O_RDONLY);
+    while (1)
+    {
+        int key = keyboard_analyze_keycode(fd);
+        if (key != 0)
+        {
+            printf("key = %c", (char)key);
+        }
+    }
 }

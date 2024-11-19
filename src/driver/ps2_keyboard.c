@@ -189,11 +189,6 @@ void init_ps2keyboard()
     io_out8(PORT_PS2_KEYBOARD_DATA, PS2_KEYBOARD_PARAM_INIT);
     wait_ps2_keyboard_write();
 
-    // 执行一百万次nop，等待键盘控制器把命令执行完毕
-    for (int i = 0; i < 1000; ++i)
-        for (int j = 0; j < 1000; ++j)
-            nop();
-
     wait_queue_init(&ps2_keyboard_wait_queue, NULL);
     // 初始化键盘缓冲区的读写锁
     spin_init(&ps2_kb_buf_rw_lock);

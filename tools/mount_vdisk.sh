@@ -12,3 +12,6 @@ echo ${LOOP_DEVICE}p1
 
 mkdir -p mnt_point
 mount ${LOOP_DEVICE}p1 mnt_point
+
+mkdir mnt_point/dev/
+touch mnt_point/dev/kbd.dev
