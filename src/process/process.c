@@ -92,7 +92,7 @@ void process_exit_thread(struct process_control_block *pcb);
  */
 #pragma GCC push_options
 #pragma GCC optimize("O0")
-void __switch_to(struct process_control_block *prev, struct process_control_block *next)
+__attribute__((used)) void __switch_to(struct process_control_block *prev, struct process_control_block *next)
 {
     initial_tss[proc_current_cpu_id].rsp0 = next->thread->rbp;
     // kdebug("next_rsp = %#018lx   ", next->thread->rsp);
@@ -276,7 +276,7 @@ load_elf_failed:;
  */
 #pragma GCC push_options
 #pragma GCC optimize("O0")
-uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
+__attribute__((used)) uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 {
     // 当前进程正在与父进程共享地址空间，需要创建
     // 独立的地址空间才能使新程序正常运行

@@ -352,14 +352,12 @@ int do_scroll(bool direction, int pixels)
 {
     if (direction == true) // 向上滚动
     {
-        pixels = pixels;
         if (pixels > pos.YResolution)
             return -1;
         // 无需滚动
         if (pixels == 0)
             return 0;
         unsigned int src = pixels * pos.XResolution;
-        unsigned int count = pos.FB_length - src;
 
         memcpy((pos.FB_addr + src), pos.FB_addr, sizeof(unsigned int) * (pos.FB_length - src));
         memset(pos.FB_addr + (pos.FB_length - src), 0, sizeof(unsigned int) * (src));
@@ -370,6 +368,7 @@ int do_scroll(bool direction, int pixels)
         return -1;
     return 0;
 }
+
 /**
  * @brief 滚动窗口（尚不支持向下滚动）
  *
@@ -446,7 +445,7 @@ static int scroll(bool direction, int pixels, bool animation)
     return 0;
 }
 
-static const char* const color_codes[] = {
+static char* const color_codes[] = {
     [BLACK] = "0",
     [RED] = "1", 
     [GREEN] = "2",

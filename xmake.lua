@@ -15,7 +15,7 @@ add_arflags("-target x86_64-freestanding")
 add_ldflags("-target x86_64-freestanding")
 
 add_cflags("-mno-80387", "-mno-mmx", "-mno-sse", "-mno-sse2", "-msoft-float")
-add_cflags("-mno-red-zone", "-mcmodel=large", "-static", "-fno-sanitize=undefined")
+add_cflags("-flto", "-mno-red-zone", "-mcmodel=large", "-static", "-fno-sanitize=undefined")
 
 target("kernel")
     set_kind("binary")
@@ -56,8 +56,8 @@ target("iso")
         import("core.project.project")
         local iso_dir = "$(buildir)/iso_dir"
 
-        if os.exists(iso_dir) then os.rmdir(iso_dir) end
-        os.cp("assets", iso_dir)
+        os.mkdir(iso_dir)
+        os.cp("assets/limine", iso_dir)
 
         local kernel_target = project.target("kernel")
         os.cp(kernel_target:targetfile(), iso_dir .. "/kernel.elf")
