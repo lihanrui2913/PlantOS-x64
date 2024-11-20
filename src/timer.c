@@ -13,7 +13,7 @@ uint64_t volatile timer_jiffies = 0;
 
 void test_timer(void *data)
 {
-    color_printk(ORANGE, BLACK, "(test_timer)");
+    color_printk(MAGENTA, BLACK, "(test_timer)");
 }
 
 void init_timer()

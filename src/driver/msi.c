@@ -36,7 +36,7 @@ struct msi_msg_t *msi_arch_get_msg(struct msi_desc_t *msi_desc)
  * @param cap_off capability list的offset
  * @return struct pci_msix_cap_t 对应的capability list
  */
-static __always_inline struct pci_msix_cap_t __msi_read_msix_cap_list(struct msi_desc_t *msi_desc, uint32_t cap_off)
+static struct pci_msix_cap_t __msi_read_msix_cap_list(struct msi_desc_t *msi_desc, uint32_t cap_off)
 {
     struct pci_msix_cap_t cap_list = {0};
     uint32_t dw0;
@@ -51,7 +51,7 @@ static __always_inline struct pci_msix_cap_t __msi_read_msix_cap_list(struct msi
     return cap_list;
 }
 
-static __always_inline struct pci_msi_cap_t __msi_read_cap_list(struct msi_desc_t *msi_desc, uint32_t cap_off)
+static struct pci_msi_cap_t __msi_read_cap_list(struct msi_desc_t *msi_desc, uint32_t cap_off)
 {
     struct pci_msi_cap_t cap_list;
     uint32_t dw0;
@@ -87,7 +87,7 @@ static __always_inline struct pci_msi_cap_t __msi_read_cap_list(struct msi_desc_
  * @param msix_cap msix capability list的结构体
  * @return int 错误码
  */
-static __always_inline int __msix_map_table(struct pci_device_structure_header_t *pci_dev, struct pci_msix_cap_t *msix_cap)
+static int __msix_map_table(struct pci_device_structure_header_t *pci_dev, struct pci_msix_cap_t *msix_cap)
 {
     // 计算bar寄存器的offset
     uint32_t bar_off = 0x10 + 4 * (msix_cap->dword1 & 0x7);
@@ -112,7 +112,7 @@ static __always_inline int __msix_map_table(struct pci_device_structure_header_t
  * @param pci_dev pci设备结构体
  * @param msi_desc msi描述符
  */
-static __always_inline void __msix_set_entry(struct msi_desc_t *msi_desc)
+static void __msix_set_entry(struct msi_desc_t *msi_desc)
 {
     uint64_t *ptr = (uint64_t *)(msi_desc->pci_dev->msix_mmio_vaddr + msi_desc->pci_dev->msix_offset + msi_desc->msi_index * 16);
     *ptr = ((uint64_t)(msi_desc->msg.address_hi) << 32) | (msi_desc->msg.address_lo);
@@ -129,7 +129,7 @@ static __always_inline void __msix_set_entry(struct msi_desc_t *msi_desc)
  * @param pci_dev pci设备
  * @param msi_index 表项号
  */
-static __always_inline void __msix_clear_entry(struct pci_device_structure_header_t *pci_dev, uint16_t msi_index)
+static void __msix_clear_entry(struct pci_device_structure_header_t *pci_dev, uint16_t msi_index)
 {
     uint64_t *ptr = (uint64_t *)(pci_dev->msix_mmio_vaddr + pci_dev->msix_offset + msi_index * 16);
     *ptr = 0;

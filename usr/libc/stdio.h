@@ -4,15 +4,14 @@
 #include <stdarg.h>
 
 // 字体颜色的宏定义
-#define COLOR_WHITE 0x00ffffff  // 白
-#define COLOR_BLACK 0x00000000  // 黑
-#define COLOR_RED 0x00ff0000    // 红
-#define COLOR_ORANGE 0x00ff8000 // 橙
-#define COLOR_YELLOW 0x00ffff00 // 黄
-#define COLOR_GREEN 0x0000ff00  // 绿
-#define COLOR_BLUE 0x000000ff   // 蓝
-#define COLOR_INDIGO 0x0000ffff // 靛
-#define COLOR_PURPLE 0x008000ff // 紫
+#define COLOR_BLACK   0  // 黑
+#define COLOR_RED     1  // 红
+#define COLOR_GREEN   2  // 绿
+#define COLOR_YELLOW  3  // 黄
+#define COLOR_BLUE    4  // 蓝
+#define COLOR_MAGENTA 5  // 品红
+#define COLOR_CYAN    6  // 青
+#define COLOR_WHITE   7  // 白
 
 #define SEEK_SET 0 /* Seek relative to start-of-file */
 #define SEEK_CUR 1 /* Seek relative to current position */

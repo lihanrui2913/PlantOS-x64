@@ -39,6 +39,7 @@ void kmain(void)
     sys_vector_init();
 }
 
+#include "display/terminal.h"
 #include "driver/acpi.h"
 #include "irq.h"
 #include "driver/hpet.h"
@@ -53,6 +54,7 @@ void kstage2(void)
 {
     init_pmm();
     init_vmm();
+    init_terminal();
 
     set_tss_descriptor(10, &initial_tss[0]);
     uint64_t tss_item_addr = (uint64_t)phy_2_virt(0x7c00);

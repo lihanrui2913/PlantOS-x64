@@ -26,8 +26,8 @@ struct vfs_superblock_t *fat32_register_partition(uint8_t part_num)
     struct MBR_disk_partition_table_t *DPT = MBR_read_partition_table();
 
     //	for(i = 0 ;i < 512 ; i++)
-    //		color_printk(PURPLE,WHITE,"%02x",buf[i]);
-    color_printk(ORANGE, BLACK, "DPTE[0] start_LBA:%#018lx\ttype:%#018lx\n", DPT->DPTE[part_num].starting_LBA, DPT->DPTE[part_num].type);
+    //		color_printk(BLUE,WHITE,"%02x",buf[i]);
+    color_printk(MAGENTA, BLACK, "DPTE[0] start_LBA:%#018lx\ttype:%#018lx\n", DPT->DPTE[part_num].starting_LBA, DPT->DPTE[part_num].type);
     uint8_t *buf = kalloc(512);
 
     // 读取文件系统的boot扇区
@@ -379,7 +379,7 @@ struct vfs_superblock_t *fat32_read_superblock(void *DPTE, uint8_t DPT_type, voi
     fsbi->fsinfo_sector_addr_infat = fbs->BPB_FSInfo;
     fsbi->bootsector_bak_sector_addr_infat = fbs->BPB_BkBootSec;
 
-    color_printk(ORANGE, BLACK, "FAT32 Boot Sector\n\tBPB_FSInfo:%#018lx\n\tBPB_BkBootSec:%#018lx\n\tBPB_TotSec32:%#018lx\n", fbs->BPB_FSInfo, fbs->BPB_BkBootSec, fbs->BPB_TotSec32);
+    color_printk(MAGENTA, BLACK, "FAT32 Boot Sector\n\tBPB_FSInfo:%#018lx\n\tBPB_BkBootSec:%#018lx\n\tBPB_TotSec32:%#018lx\n", fbs->BPB_FSInfo, fbs->BPB_BkBootSec, fbs->BPB_TotSec32);
 
     // fsinfo扇区的信息
     memset(&fsbi->fsinfo, 0, sizeof(struct fat32_FSInfo_t));

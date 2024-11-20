@@ -123,8 +123,8 @@ void acpi_init()
         // kdebug("xsdt sign=%s", xsdt->header.Signature);
         // acpi_XSDT_Entry_num = (xsdt->header.Length - sizeof(xsdt->header)) / 8;
 
-        // color_printk(ORANGE, BLACK, "XSDT Length=%dbytes.\n", xsdt->header.Length);
-        // color_printk(ORANGE, BLACK, "XSDT Entry num=%d\n", acpi_XSDT_Entry_num);
+        // color_printk(MAGENTA, BLACK, "XSDT Length=%dbytes.\n", xsdt->header.Length);
+        // color_printk(MAGENTA, BLACK, "XSDT Entry num=%d\n", acpi_XSDT_Entry_num);
 
         // vmm_mmap((uint64_t)get_cr3(), true, ACPI_XSDT_VIRT_ADDR_BASE, xsdt_phys_base, xsdt->header.Length + PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
         // // 映射所有的Entry的物理地址
@@ -148,8 +148,8 @@ void acpi_init()
         kdebug("offset=%d", sizeof(rsdt->header));
         acpi_RSDT_Entry_num = (rsdt->header.Length - 36) / 4;
 
-        color_printk(ORANGE, BLACK, "RSDT Length=%dbytes.\n", rsdt->header.Length);
-        color_printk(ORANGE, BLACK, "RSDT Entry num=%d\n", acpi_RSDT_Entry_num);
+        color_printk(MAGENTA, BLACK, "RSDT Length=%dbytes.\n", rsdt->header.Length);
+        color_printk(MAGENTA, BLACK, "RSDT Entry num=%d\n", acpi_RSDT_Entry_num);
 
         vmm_mmap((uint64_t)get_cr3(), true, ACPI_RSDT_VIRT_ADDR_BASE, rsdt_phys_base, rsdt->header.Length + PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
         // 映射所有的Entry的物理地址
@@ -175,8 +175,8 @@ void acpi_init()
         kdebug("offset=%d", sizeof(rsdt->header));
         acpi_RSDT_Entry_num = (rsdt->header.Length - 36) / 4;
 
-        color_printk(ORANGE, BLACK, "RSDT Length=%dbytes.\n", rsdt->header.Length);
-        color_printk(ORANGE, BLACK, "RSDT Entry num=%d\n", acpi_RSDT_Entry_num);
+        color_printk(MAGENTA, BLACK, "RSDT Length=%dbytes.\n", rsdt->header.Length);
+        color_printk(MAGENTA, BLACK, "RSDT Entry num=%d\n", acpi_RSDT_Entry_num);
 
         vmm_mmap((uint64_t)get_cr3(), true, ACPI_RSDT_VIRT_ADDR_BASE, rsdt_phys_base, rsdt->header.Length + PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
         // 映射所有的Entry的物理地址
@@ -191,7 +191,7 @@ void acpi_init()
     }
     else
     {
-        kBUG("At acpi_init(): Cannot get right SDT!");
+        kbug("At acpi_init(): Cannot get right SDT!");
         while (1)
             hlt();
     }

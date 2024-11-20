@@ -1,4 +1,5 @@
 #include "display/printk.h"
+#include "display/terminal.h"
 #include "limine.h"
 #include "spinlock.h"
 
@@ -25,6 +26,8 @@ struct position
     spinlock_t spinlock;
 } pos;
 
+struct limine_framebuffer *framebuffer = NULL;
+
 void init_printk()
 {
     if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1)
@@ -33,7 +36,7 @@ void init_printk()
             __asm__("hlt");
     }
 
-    struct limine_framebuffer *framebuffer = framebuffer_request.response->framebuffers[0];
+    framebuffer = framebuffer_request.response->framebuffers[0];
 
     pos.FB_addr = framebuffer->address;
     pos.FB_length = framebuffer->bpp * framebuffer->width * framebuffer->height;
@@ -443,12 +446,49 @@ static int scroll(bool direction, int pixels, bool animation)
     return 0;
 }
 
+static const char* const color_codes[] = {
+    [BLACK] = "0",
+    [RED] = "1", 
+    [GREEN] = "2",
+    [YELLOW] = "3",
+    [BLUE] = "4",
+    [MAGENTA] = "5",
+    [CYAN] = "6",
+    [WHITE] = "7"
+};
+
+void add_color(char *dest, uint32_t color, int is_background) 
+{
+    strcat(dest, "\033[");
+    strcat(dest, is_background ? "4" : "3");
+    strcat(dest, color_codes[color]);
+    strcat(dest, "m");
+}
+
 int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ...)
 {
     int i = 0;
     int count = 0;
     int line = 0;
     va_list args;
+
+    if (use_terminal)
+    {
+        buf[0] = '\0';
+
+        add_color(buf, FRcolor, false);
+        add_color(buf, BKcolor, true);
+
+        va_start(args, fmt);
+        i = vsprintf(buf + 11, fmt, args);
+        va_end(args);
+
+        strcat(buf, buf + 11);
+        strcat(buf, "\033[0m");
+
+        terminal_print(buf);
+        return i;
+    }
 
     va_start(args, fmt);
     i = vsprintf(buf, fmt, args);

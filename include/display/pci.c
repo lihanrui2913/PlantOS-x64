@@ -446,7 +446,7 @@ void init_pci()
 {
     kinfo("Initializing PCI bus...");
     pci_checkAllBuses();
-    kinfo("Total pci device and function num = %d", count_device_list);
+    kinfo("Total  and function num = %d", count_device_list);
 
     struct pci_device_structure_header_t *ptr = container_of(pci_device_structure_list, struct pci_device_structure_header_t, list);
     for (int i = 0; i < count_device_list; ++i)
@@ -455,30 +455,30 @@ void init_pci()
         {
             if (ptr->Status & 0x10)
             {
-                kinfo("[pci device %d] class code = %d\tsubclass=%d\tstatus=%#010lx\tcap_pointer=%#010lx", i, ptr->Class_code, ptr->SubClass, ptr->Status, ((struct pci_device_structure_general_device_t *)ptr)->Capabilities_Pointer);
+                kinfo("[ %d] class code = %d\tsubclass=%d\tstatus=%#010lx\tcap_pointer=%#010lx", i, ptr->Class_code, ptr->SubClass, ptr->Status, ((struct pci_device_structure_general_device_t *)ptr)->Capabilities_Pointer);
                 uint32_t tmp = pci_read_config(ptr->bus, ptr->device, ptr->func, ((struct pci_device_structure_general_device_t *)ptr)->Capabilities_Pointer);
             }
             else
             {
 
-                kinfo("[pci device %d] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
+                kinfo("[ %d] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
             }
         }
         else if (ptr->HeaderType == 0x1)
         {
             if (ptr->Status & 0x10)
             {
-                kinfo("[pci device %d] class code = %d\tsubclass=%d\tstatus=%#010lx\tcap_pointer=%#010lx", i, ptr->Class_code, ptr->SubClass, ptr->Status, ((struct pci_device_structure_pci_to_pci_bridge_t *)ptr)->Capability_Pointer);
+                kinfo("[  %d ] class code = %d\tsubclass=%d\tstatus=%#010lx\tcap_pointer=%#010lx", i, ptr->Class_code, ptr->SubClass, ptr->Status, ((struct pci_device_structure_pci_to_pci_bridge_t *)ptr)->Capability_Pointer);
             }
             else
             {
 
-                kinfo("[pci device %d] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
+                kinfo("[  %d ] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
             }
         }
         else if (ptr->HeaderType == 0x2)
         {
-            kinfo("[pci device %d] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
+            kinfo("[  %d ] class code = %d\tsubclass=%d\tstatus=%#010lx\t", i, ptr->Class_code, ptr->SubClass, ptr->Status);
         }
 
         ptr = container_of(list_next(&(ptr->list)), struct pci_device_structure_header_t, list);

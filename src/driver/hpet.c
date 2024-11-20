@@ -78,7 +78,7 @@ void HPET_measure_freq()
     kdebug("clks_to_intr=%#ld", clks_to_intr);
     if (clks_to_intr <= 0 || clks_to_intr > (HPET_freq * 8))
     {
-        kBUG("HPET0: Numof clocks to generate interrupt is INVALID! value=%lld", clks_to_intr);
+        kbug("HPET0: Numof clocks to generate interrupt is INVALID! value=%lld", clks_to_intr);
         while (1)
             hlt();
     }
