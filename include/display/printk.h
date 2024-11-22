@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include "glib.h"
+#include "spinlock.h"
 
 #define ZEROPAD 1  /* pad with zero */
 #define SIGN 2     /* unsigned/signed long */
@@ -14,16 +15,18 @@
 
 #define is_digit(c) ((c) >= '0' && (c) <= '9')
 
-#define BLACK   0  // 黑
-#define RED     1  // 红
-#define GREEN   2  // 绿
-#define YELLOW  3  // 黄
-#define BLUE    4  // 蓝
-#define MAGENTA 5  // 品红
-#define CYAN    6  // 青
-#define WHITE   7  // 白
+#define BLACK 0   // 黑
+#define RED 1     // 红
+#define GREEN 2   // 绿
+#define YELLOW 3  // 黄
+#define BLUE 4    // 蓝
+#define MAGENTA 5 // 品红
+#define CYAN 6    // 青
+#define WHITE 7   // 白
 
 extern unsigned char font_ascii[256][16];
+
+extern spinlock_t global_printk_lock;
 
 void init_printk();
 

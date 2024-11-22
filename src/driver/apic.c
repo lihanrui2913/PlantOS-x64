@@ -5,6 +5,7 @@
 #include "gate.h"
 #include "driver/acpi.h"
 
+#include "spinlock.h"
 #include "process/process.h"
 #include "sched/sched.h"
 
@@ -345,6 +346,8 @@ void apic_local_apic_init()
     */
 }
 
+spinlock_t do_irq_spin;
+
 /**
  * @brief 初始化apic控制器
  *
@@ -375,6 +378,8 @@ void apic_init()
     apic_local_apic_init();
 
     apic_io_apic_init();
+
+    spin_init(&do_irq_spin);
 }
 
 #include "softirq.h"
@@ -387,6 +392,8 @@ void apic_init()
  */
 void do_IRQ(struct pt_regs *rsp, uint64_t number)
 {
+    spin_lock(&do_irq_spin);
+
     if (number < 0x80 && number >= 32) // 以0x80为界限，低于0x80的是外部中断控制器，高于0x80的是Local APIC
     {
         irq_desc_t *irq = &interrupt_desc[number - 32];
@@ -444,6 +451,8 @@ void do_IRQ(struct pt_regs *rsp, uint64_t number)
     }
 
     do_softirq();
+
+    spin_unlock(&do_irq_spin);
 
     if (current_pcb->flags & PF_NEED_SCHED)
     {

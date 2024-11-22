@@ -167,7 +167,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
     kerror("Page Fault (14)");
     kerror("Error code: %#018lx, RSP: %#018lx, RIP: %#018lx", error_code, regs->rsp, regs->rip);
-    kerror("RBP: %#018lx, CR2: %#018lx", regs->rbp, regs->rip);
+    kerror("RBP: %#018lx, CR2: %#018lx", regs->rbp, cr2);
 
     kerror("%s%s%s%s%s",
         (!(error_code & 0x01)) ? "Page Not-Present | " : "",

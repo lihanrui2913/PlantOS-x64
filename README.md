@@ -4,7 +4,7 @@ This repository contains a basic x86-64 kernel in C using Limine.
 
 Only UEFI is supported, because BIOS related files are not included.
 
-### Dependencies
+## Dependencies
 
 Xmake is required to build this project.
 

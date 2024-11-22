@@ -34,27 +34,21 @@ SECTIONS
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .text : {
-        *(.text)
+        *(.text .text.*)
     } :text
 
     /* Move to the next memory page for .rodata */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .rodata : {
-        *(.rodata)
+        *(.rodata .rodata.*)
     } :rodata
 
     /* Move to the next memory page for .data */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .data : {
-        *(.data)
-    } :data
-
-    /* Move to the next memory page for .data */
-    . = ALIGN(CONSTANT(MAXPAGESIZE));
-    .data.init_proc_union : {
-        *(.data.init_proc_union)
+        *(.data .data.*)
     } :data
 
     . = ALIGN(CONSTANT(MAXPAGESIZE));
@@ -63,7 +57,7 @@ SECTIONS
     /* If you need, for example, .init_array and .fini_array, those should be placed */
     /* above this. */
     .bss : {
-        *(.bss)
+        *(.bss .bss.*)
         *(COMMON)
     } :data
 

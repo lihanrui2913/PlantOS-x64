@@ -75,7 +75,6 @@ int __sata_buffer_io(struct hba_port *port,
         }
     }
 
-fail:
     kfree(table);
     return 0;
 }
@@ -191,7 +190,6 @@ void __scsi_buffer_io(struct hba_port *port,
         }
     }
 
-fail:
     kfree(table);
     return;
 }
@@ -340,18 +338,18 @@ void init_ahci()
             if (!clbp)
             {
                 // 每页最多4个命令队列
-                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE, 0, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE, (uint64_t)allocate_frames(PAGE_2M_SIZE / PAGE_4K_SIZE), PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
                 clb_pa = physical_mapping(AHCI_MAPPING_BASE + PAGE_2M_SIZE);
                 clb_pg_addr = (uintptr_t)(AHCI_MAPPING_BASE + PAGE_2M_SIZE);
-                memset((void *)clb_pg_addr, 0, PAGE_4K_SIZE);
+                memset((void *)clb_pg_addr, 0, PAGE_2M_SIZE);
             }
             if (!fisp)
             {
                 // 每页最多16个FIS
-                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE, 0, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
-                fis_pa = physical_mapping(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE);
-                fis_pg_addr = (uintptr_t)(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_4K_SIZE);
-                memset((void *)fis_pg_addr, 0, PAGE_4K_SIZE);
+                vmm_mmap((uint64_t)get_cr3(), true, (uint64_t)AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_2M_SIZE, (uint64_t)allocate_frames(PAGE_2M_SIZE / PAGE_4K_SIZE), PAGE_2M_SIZE, PAGE_PRESENT | PAGE_R_W, false, true);
+                fis_pa = physical_mapping(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_2M_SIZE);
+                fis_pg_addr = (uintptr_t)(AHCI_MAPPING_BASE + PAGE_2M_SIZE + PAGE_2M_SIZE);
+                memset((void *)fis_pg_addr, 0, PAGE_2M_SIZE);
             }
 
             /* 重定向CLB与FIS */

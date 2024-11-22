@@ -9,12 +9,13 @@
 
 #include "elf.h"
 
-#include "driver/device.h"
-#include "driver/pci.h"
-#include "driver/ahci.h"
 #include "fs/fs.h"
 #include "fs/fat32/fat32.h"
 #include "driver/ps2_keyboard.h"
+
+#include "driver/device.h"
+#include "driver/pci.h"
+#include "driver/ahci.h"
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
@@ -30,17 +31,34 @@ extern void kernel_thread_func(void);
 struct mm_struct initial_mm = {0};
 struct thread_struct initial_thread =
     {
-        .rbp = (uint64_t)(initial_proc_union.stack + STACK_SIZE / sizeof(uint64_t)),
-        .rsp = (uint64_t)(initial_proc_union.stack + STACK_SIZE / sizeof(uint64_t)),
+        .rbp = 0,
+        .rsp = 0,
         .fs = KERNEL_DS,
         .gs = KERNEL_DS,
         .cr2 = 0,
         .trap_num = 0,
         .err_code = 0};
 
-union proc_union initial_proc_union __attribute__((used, section(".data.init_proc_union"))) = {INITIAL_PROC(initial_proc_union.pcb)};
+extern struct process_control_block initial_process =
+    {
+        .state = PROC_UNINTERRUPTIBLE,
+        .flags = PF_KTHREAD,
+        .signal = 0,
+        .cpu_id = 0,
+        .mm = &initial_mm,
+        .thread = &initial_thread,
+        .addr_limit = 0xffffffffffffffff,
+        .pid = 0,
+        .priority = 2,
+        .virtual_runtime = 0,
+        .fds = {0},
+        .next_pcb = &initial_process,
+        .parent_pcb = &initial_process,
+        .exit_code = 0,
+        .wait_child_proc_exit = 0,
+};
 
-struct process_control_block *initial_proc[MAX_CPU_NUM] = {&initial_proc_union.pcb, 0};
+struct process_control_block *initial_proc[MAX_CPU_NUM] = {&initial_process, 0};
 
 // 为每个核心初始化初始进程的tss
 struct tss_struct initial_tss[MAX_CPU_NUM] = {[0 ... MAX_CPU_NUM - 1] = INITIAL_TSS};
@@ -90,9 +108,7 @@ void process_exit_thread(struct process_control_block *pcb);
  * 由于程序在进入内核的时候已经保存了寄存器，因此这里不需要保存寄存器。
  * 这里切换fs和gs寄存器
  */
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-__attribute__((used)) void __switch_to(struct process_control_block *prev, struct process_control_block *next)
+void __switch_to(struct process_control_block *prev, struct process_control_block *next)
 {
     initial_tss[proc_current_cpu_id].rsp0 = next->thread->rbp;
     // kdebug("next_rsp = %#018lx   ", next->thread->rsp);
@@ -107,7 +123,6 @@ __attribute__((used)) void __switch_to(struct process_control_block *prev, struc
     __asm__ __volatile__("movq	%0,	%%fs \n\t" ::"a"(next->thread->fs));
     __asm__ __volatile__("movq	%0,	%%gs \n\t" ::"a"(next->thread->gs));
 }
-#pragma GCC pop_options
 
 /**
  * @brief 打开要执行的程序文件
@@ -276,7 +291,7 @@ load_elf_failed:;
  */
 #pragma GCC push_options
 #pragma GCC optimize("O0")
-__attribute__((used)) uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
+uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 {
     // 当前进程正在与父进程共享地址空间，需要创建
     // 独立的地址空间才能使新程序正常运行
@@ -290,11 +305,8 @@ __attribute__((used)) uint64_t do_execve(struct pt_regs *regs, char *path, char 
         // 分配顶层页表, 并设置顶层页表的物理地址
         new_mms->pgd = (pml4t_t *)allocate_frame();
 
-        // 由于高2K部分为内核空间，在接下来需要覆盖其数据，因此不用清零
-        memset(phy_2_virt(new_mms->pgd), 0, PAGE_4K_SIZE / 2);
-
         // 拷贝内核空间的页表指针
-        memcpy(phy_2_virt(new_mms->pgd) + 256, phy_2_virt(initial_proc[proc_current_cpu_id]) + 256, PAGE_4K_SIZE / 2);
+        memcpy(phy_2_virt(initial_proc[proc_current_cpu_id]->mm->pgd), phy_2_virt(new_mms->pgd), PAGE_4K_SIZE / 2);
     }
 
     // 设置用户栈和用户堆的基地址
@@ -502,25 +514,27 @@ int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigne
 void init_process()
 {
     kinfo("Initializing process...");
+
+    uint64_t sp = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE);
+    initial_thread.rbp = sp;
+    initial_thread.rsp = sp;
+    initial_process.state = PROC_RUNNING;
+    initial_process.cpu_id = 0;
+    initial_process.virtual_runtime = (1UL << 60);
+    list_init(&initial_process.list);
+    current_pcb->virtual_runtime = (1UL << 60);
     initial_mm.pgd = (pml4t_t *)get_cr3();
+    initial_mm.brk_end = initial_process.addr_limit;
+    initial_tss[0].rsp0 = initial_thread.rbp;
 
-    initial_mm.brk_end = current_pcb->addr_limit;
-
-    initial_tss[proc_current_cpu_id].rsp0 = initial_thread.rbp;
+    memcpy(&initial_process, current_pcb, sizeof(struct process_control_block));
 
     // 初始化pid的写锁
     spin_init(&process_global_pid_write_lock);
     // 初始化进程的循环链表
-    list_init(&initial_proc_union.pcb.list);
     io_mfence();
     kernel_thread(initial_kernel_thread, 0x1103, CLONE_FS | CLONE_SIGNAL); // 初始化内核线程
     io_mfence();
-
-    initial_proc_union.pcb.state = PROC_RUNNING;
-    initial_proc_union.pcb.preempt_count = 0;
-    initial_proc_union.pcb.cpu_id = 0;
-    initial_proc_union.pcb.virtual_runtime = (1UL << 60);
-    current_pcb->virtual_runtime = (1UL << 60);
 
     ksuccess("process initialized");
 }
@@ -537,7 +551,7 @@ void init_process()
 int do_fork(struct pt_regs *regs, unsigned long clone_flags, unsigned long stack_start, unsigned long stack_size)
 {
     int retval = 0;
-    struct process_control_block *tsk = (struct process_control_block *)phy_2_virt(allocate_frame());
+    struct process_control_block *tsk = (struct process_control_block *)kalloc_aligned(STACK_SIZE, STACK_SIZE);
 
     io_mfence();
     if (tsk == NULL)
@@ -562,16 +576,15 @@ int do_fork(struct pt_regs *regs, unsigned long clone_flags, unsigned long stack
         tsk->flags |= PF_KFORK;
 
     tsk->priority = 2;
-    tsk->preempt_count = 0;
 
     // 增加全局的pid并赋值给新进程的pid
     spin_lock(&process_global_pid_write_lock);
     tsk->pid = process_global_pid++;
     io_mfence();
     // 加入到进程链表中
-    tsk->next_pcb = initial_proc_union.pcb.next_pcb;
+    tsk->next_pcb = initial_process.next_pcb;
     io_mfence();
-    initial_proc_union.pcb.next_pcb = tsk;
+    initial_process.next_pcb = tsk;
     io_mfence();
     tsk->parent_pcb = current_pcb;
     io_mfence();
@@ -631,9 +644,9 @@ copy_flags_failed:;
  */
 struct process_control_block *process_get_pcb(long pid)
 {
-    struct process_control_block *pcb = initial_proc_union.pcb.next_pcb;
+    struct process_control_block *pcb = initial_process.next_pcb;
 
-    for (; pcb != &initial_proc_union.pcb; pcb = pcb->next_pcb)
+    for (; pcb != &initial_process; pcb = pcb->next_pcb)
     {
         if (pcb->pid == pid)
             return pcb;
@@ -700,7 +713,7 @@ uint64_t process_copy_mm(uint64_t clone_flags, struct process_control_block *pcb
     struct mm_struct *new_mms = (struct mm_struct *)kalloc(sizeof(struct mm_struct));
     memset(new_mms, 0, sizeof(struct mm_struct));
     new_mms->pgd = (pml4t_t *)allocate_frame();
-    memcpy(current_pcb->mm->pgd, new_mms->pgd, PAGE_4K_SIZE);
+    memcpy(phy_2_virt(current_pcb->mm->pgd), phy_2_virt(new_mms->pgd), PAGE_4K_SIZE);
 
     pcb->mm = new_mms;
 
@@ -745,7 +758,7 @@ uint64_t process_exit_mm(struct process_control_block *pcb)
 uint64_t process_copy_thread(uint64_t clone_flags, struct process_control_block *pcb, uint64_t stack_start, uint64_t stack_size, struct pt_regs *current_regs)
 {
     // 将线程结构体放置在pcb后方
-    struct thread_struct *thd = (struct thread_struct *)phy_2_virt(allocate_frame());
+    struct thread_struct *thd = (struct thread_struct *)(pcb + 1);
     memset(thd, 0, sizeof(struct thread_struct));
     pcb->thread = thd;
 

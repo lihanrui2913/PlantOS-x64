@@ -22,25 +22,8 @@ __attribute__((used, section(".limine_requests"))) static volatile struct limine
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0};
 
-uint8_t *bitmap;
 bool bitmap_initialized;
-
 uint64_t mem_size = 0;
-
-void bitmap_set(uint64_t index)
-{
-    bitmap[index / 8] |= (1 << (index % 8));
-}
-
-void bitmap_clear(uint64_t index)
-{
-    bitmap[index / 8] &= ~(1 << (index % 8));
-}
-
-uint8_t bitmap_get(uint64_t index)
-{
-    return bitmap[index / 8] & (1 << (index % 8));
-}
 
 void init_pmm()
 {
@@ -52,14 +35,11 @@ void init_pmm()
     {
         struct limine_memmap_entry *entry = response->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_USABLE)
-        {
-            mem_size += entry->length;
-        }
+        mem_size += entry->length;
     }
 
-    uint64_t bitmap_size = mem_size / PAGE_4K_SIZE / 8;
-    uint64_t bitmap_phys_address = 0;
+    uint64_t bitmap_size = mem_size / PAGE_4K_SIZE / sizeof(uint64_t) / 8;
+    uint64_t bitmap_base = 0;
 
     for (uint64_t i = 0; i < response->entry_count; i++)
     {
@@ -67,60 +47,47 @@ void init_pmm()
 
         if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= bitmap_size && !bitmap_initialized)
         {
-            bitmap = (uint8_t *)phy_2_virt(entry->base);
+            bitmap_base = entry->base;
+            init_bitmap((uint64_t)phy_2_virt(bitmap_base), bitmap_size);
+            bitmap_set_range(entry->base / PAGE_4K_SIZE, entry->length / PAGE_4K_SIZE, true);
             bitmap_initialized = true;
-
-            for (uint64_t j = entry->base / PAGE_4K_SIZE; j < (entry->base + bitmap_size + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; j++)
-                bitmap_clear(j);
-
-            for (uint64_t i = (entry->base + bitmap_size + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; i < (entry->base + entry->length + PAGE_4K_SIZE - 1) / PAGE_4K_SIZE; i++)
-                bitmap_set(i);
         }
     }
+
+    while (!bitmap_initialized)
+        hlt();
 
     for (uint64_t i = 0; i < response->entry_count; i++)
     {
         struct limine_memmap_entry *entry = response->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_USABLE && entry->base != bitmap_phys_address)
+        if (entry->type == LIMINE_MEMMAP_USABLE && entry->base != bitmap_base)
         {
-            for (uint64_t i = entry->base / PAGE_4K_SIZE; i < (entry->length / PAGE_4K_SIZE); i++)
-            {
-                bitmap_set(i);
-            }
+            bitmap_set_range(entry->base / PAGE_4K_SIZE, entry->length / PAGE_4K_SIZE, true);
         }
     }
 
-    for (uint64_t i = 0; i < 0x100000; i += PAGE_4K_SIZE)
-    {
-        bitmap_clear(i / PAGE_4K_SIZE);
-    }
+    bitmap_set_range(bitmap_base / PAGE_4K_SIZE, bitmap_base / PAGE_4K_SIZE + bitmap_size / PAGE_4K_SIZE, false);
+}
 
-    color_printk(WHITE, BLACK, "mem_size = %#018lx\n", mem_size);
+uint64_t allocate_frames(uint64_t cnt)
+{
+    uint64_t index = bitmap_find_range(cnt, true);
+    bitmap_set_range(index, index + cnt, false);
+    return index * PAGE_4K_SIZE;
 }
 
 uint64_t allocate_frame()
 {
-    for (uint64_t i = 0; i <= mem_size / PAGE_4K_SIZE; i++)
-    {
-        if (bitmap_get(i) != 0)
-        {
-            bitmap_clear(i);
-            return i * PAGE_4K_SIZE;
-        }
-    }
-    color_printk(RED, WHITE, "No enougth memory for allocate\n");
-    return 0;
+    return allocate_frames(1);
 }
 
 void deallocate_frame(uint64_t frame)
 {
-    bitmap_set(frame / PAGE_4K_SIZE);
+    bitmap_set(frame / PAGE_4K_SIZE, true);
 }
 
 /* VMM */
-
-uint64_t heap = HEAP_START;
 
 void init_vmm()
 {
@@ -131,8 +98,7 @@ void init_vmm()
         vmm_mmap((uint64_t)get_cr3(), true, i, phys, PAGE_4K_SIZE, PAGE_PRESENT | PAGE_R_W | PAGE_PWT | PAGE_PCD, false, true);
     }
 
-    *((uint64_t *)heap) = HEAP_SIZE - 0x10;
-    *((uint64_t *)(heap + HEAP_SIZE - 0x08)) = ~(0ULL);
+    init_allocator(HEAP_START, HEAP_SIZE);
 }
 
 typedef struct
@@ -252,59 +218,6 @@ void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_st
     return;
 failed:;
     color_printk(RED, BLACK, "Map memory failed. vaddr=%#018lx, paddr=%#018lx\n", virt_addr_start, phys_addr_start);
-}
-
-void *kalloc(uint64_t size)
-{
-    size = (((size - 1) >> 3) + 1) << 3;
-    uint64_t *block = (uint64_t *)heap;
-
-    while (~*block)
-    {
-        // Block is free
-        if (!(*block & 1))
-        {
-            // Merge free blocks
-            uint64_t *next = block + (*block >> 3);
-            next++;
-            while (!(*next & 1))
-            {
-                *block += (*next & (~0ULL << 3));
-                *block += 8;
-                next += *next >> 3;
-                next++;
-            }
-            // Check block size
-            uint64_t blockSize = (*block >> 3) << 3;
-            if (blockSize >= size)
-            {
-                // Not whole block
-                if (blockSize > size)
-                {
-                    // Split to two blocks
-                    next = block;
-                    *next = size;
-                    next += (size >> 3);
-                    next++;
-                    *next = blockSize - size - 8;
-                }
-                // Use this block
-                *block |= 1;
-                return ++block;
-            }
-        }
-
-        // Next block
-        block += *block >> 3;
-        block++;
-    }
-    return 0;
-}
-
-void kfree(void *p)
-{
-    uint64_t *block = ((uint64_t *)(((uint64_t)p) - 8));
-    *block = (*block >> 1) << 1;
 }
 
 uint64_t physical_mapping(uint64_t linear)

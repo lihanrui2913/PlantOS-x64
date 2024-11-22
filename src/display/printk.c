@@ -3,6 +3,8 @@
 #include "limine.h"
 #include "spinlock.h"
 
+spinlock_t global_printk_lock;
+
 __attribute__((used, section(".limine_requests"))) static volatile struct limine_framebuffer_request framebuffer_request = {
     .id = LIMINE_FRAMEBUFFER_REQUEST,
     .revision = 0};
@@ -50,7 +52,7 @@ void init_printk()
     pos.XCharSize = 8;
     pos.YCharSize = 16;
 
-    spin_init(&pos.spinlock);
+    spin_init(&global_printk_lock);
 }
 
 void putchar(unsigned int *fb, int Xsize, int x, int y, unsigned int FRcolor, unsigned int BKcolor, unsigned char font)
@@ -445,18 +447,17 @@ static int scroll(bool direction, int pixels, bool animation)
     return 0;
 }
 
-static char* const color_codes[] = {
+static char *const color_codes[] = {
     [BLACK] = "0",
-    [RED] = "1", 
+    [RED] = "1",
     [GREEN] = "2",
     [YELLOW] = "3",
     [BLUE] = "4",
     [MAGENTA] = "5",
     [CYAN] = "6",
-    [WHITE] = "7"
-};
+    [WHITE] = "7"};
 
-void add_color(char *dest, uint32_t color, int is_background) 
+void add_color(char *dest, uint32_t color, int is_background)
 {
     strcat(dest, "\033[");
     strcat(dest, is_background ? "4" : "3");
@@ -494,7 +495,6 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
     va_end(args);
 
     cli();
-    spin_lock(&pos.spinlock);
 
     for (count = 0; count < i || line; count++)
     {
@@ -548,7 +548,6 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         }
     }
 
-    spin_unlock(&pos.spinlock);
     sti();
 
     return i;

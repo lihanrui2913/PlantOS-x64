@@ -13,7 +13,7 @@ struct process_control_block *sched_cfs_dequeue()
 {
     if (list_empty(&sched_cfs_ready_queue[proc_current_cpu_id].proc_queue.list))
     {
-        return &initial_proc_union.pcb;
+        return &initial_process;
     }
 
     struct process_control_block *proc = container_of(list_next(&sched_cfs_ready_queue[proc_current_cpu_id].proc_queue.list), struct process_control_block, list);
@@ -120,12 +120,16 @@ void sched()
     sched_cfs();
 }
 
+spinlock_t sched_update_jiffies_lock;
+
 /**
  * @brief 当时钟中断到达时，更新时间片
  *
  */
 void sched_update_jiffies()
 {
+    spin_lock(&sched_update_jiffies_lock);
+
     switch (current_pcb->priority)
     {
     case 0:
@@ -142,6 +146,8 @@ void sched_update_jiffies()
     // 时间片耗尽，标记可调度
     if (sched_cfs_ready_queue[proc_current_cpu_id].cpu_exec_proc_jiffies <= 0)
         current_pcb->flags |= PF_NEED_SCHED;
+
+    spin_unlock(&sched_update_jiffies_lock);
 }
 
 /**
@@ -150,6 +156,7 @@ void sched_update_jiffies()
  */
 void init_sched()
 {
+    spin_init(&sched_update_jiffies_lock);
     memset(&sched_cfs_ready_queue, 0, sizeof(struct sched_queue_t) * MAX_CPU_NUM);
     for (int i = 0; i < MAX_CPU_NUM; ++i)
     {

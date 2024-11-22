@@ -11,9 +11,6 @@
 
 #define MAX_CPU_NUM 256
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-
 struct process_control_block;
 // 获取当前的pcb
 static inline struct process_control_block *get_current_pcb()
@@ -27,13 +24,10 @@ static inline struct process_control_block *get_current_pcb()
 };
 #define current_pcb get_current_pcb()
 
-#pragma GCC pop_options
-
 #define INITIAL_PROC(proc)                \
 	{                                     \
 		.state = PROC_UNINTERRUPTIBLE,    \
 		.flags = PF_KTHREAD,              \
-		.preempt_count = 0,               \
 		.signal = 0,                      \
 		.cpu_id = 0,                      \
 		.mm = &initial_mm,                \
@@ -50,27 +44,23 @@ static inline struct process_control_block *get_current_pcb()
 	}
 
 // 设置初始进程的tss
-#define INITIAL_TSS                                                                   \
-	{                                                                                 \
-		.reserved0 = 0,                                                               \
-		.rsp0 = (uint64_t)(initial_proc_union.stack + STACK_SIZE / sizeof(uint64_t)), \
-		.rsp1 = (uint64_t)(initial_proc_union.stack + STACK_SIZE / sizeof(uint64_t)), \
-		.rsp2 = (uint64_t)(initial_proc_union.stack + STACK_SIZE / sizeof(uint64_t)), \
-		.reserved1 = 0,                                                               \
-		.ist1 = 0xffff800000007c00,                                                   \
-		.ist2 = 0xffff800000007c00,                                                   \
-		.ist3 = 0xffff800000007c00,                                                   \
-		.ist4 = 0xffff800000007c00,                                                   \
-		.ist5 = 0xffff800000007c00,                                                   \
-		.ist6 = 0xffff800000007c00,                                                   \
-		.ist7 = 0xffff800000007c00,                                                   \
-		.reserved2 = 0,                                                               \
-		.reserved3 = 0,                                                               \
+#define INITIAL_TSS                 \
+	{                               \
+		.reserved0 = 0,             \
+		.rsp0 = 0xffff800000007c00, \
+		.rsp1 = 0xffff800000007c00, \
+		.rsp2 = 0xffff800000007c00, \
+		.reserved1 = 0,             \
+		.ist1 = 0xffff800000007c00, \
+		.ist2 = 0xffff800000007c00, \
+		.ist3 = 0xffff800000007c00, \
+		.ist4 = 0xffff800000007c00, \
+		.ist5 = 0xffff800000007c00, \
+		.ist6 = 0xffff800000007c00, \
+		.ist7 = 0xffff800000007c00, \
+		.reserved2 = 0,             \
+		.reserved3 = 0,             \
 		.io_map_base_addr = 0}
-
-#define GET_CURRENT_PCB    \
-	"movq %rsp, %rbx \n\t" \
-	"andq $-32768, %rbx\n\t"
 
 #define switch_proc(prev, next)                                                                     \
 	do                                                                                              \
@@ -198,5 +188,5 @@ int kernel_thread(unsigned long (*fn)(unsigned long), unsigned long arg, unsigne
 extern struct tss_struct initial_tss[MAX_CPU_NUM];
 extern struct mm_struct initial_mm;
 extern struct thread_struct initial_thread;
-extern union proc_union initial_proc_union;
+extern struct process_control_block initial_process;
 extern struct process_control_block *initial_proc[MAX_CPU_NUM];

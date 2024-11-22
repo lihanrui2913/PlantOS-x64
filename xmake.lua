@@ -1,6 +1,7 @@
 set_project("PlantOS")
 
 add_rules("mode.debug", "mode.release")
+add_requires("zig")
 set_defaultmode("debug")
 
 set_optimize("none")
@@ -15,7 +16,7 @@ add_arflags("-target x86_64-freestanding")
 add_ldflags("-target x86_64-freestanding")
 
 add_cflags("-mno-80387", "-mno-mmx", "-mno-sse", "-mno-sse2", "-msoft-float")
-add_cflags("-flto", "-mno-red-zone", "-mcmodel=large", "-static", "-fno-sanitize=undefined")
+add_cflags("-mno-red-zone", "-mcmodel=large", "-static", "-fno-sanitize=undefined")
 
 target("kernel")
     set_kind("binary")
@@ -26,6 +27,7 @@ target("kernel")
     add_includedirs("include")
     add_ldflags("-T assets/linker.ld", "-e kmain")
 
+    add_links("plalloc")
     add_links("os_terminal")
     add_files("src/**.S", "src/**.c")
 
@@ -79,12 +81,12 @@ target("iso")
         import("core.project.config")
 
         local flags = {
-            "-M", "q35", "-m", "1g", "-smp", "cores=1",
+            "-M", "q35", "-m", "4g", "-smp", "cores=4",
             "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
             "-cpu", "qemu64,+x2apic", "-enable-kvm",
             "-cdrom", config.buildir() .. "/PlantOS.iso", "-boot", "d",
             "-drive", "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img",
-            "-device", "ahci,id=ahci", "-device", "ide-hd,drive=root,bus=ahci.1"
+            "-device", "ahci,id=ahci", "-device", "ide-hd,drive=root,bus=ahci.2",
         };
 
         os.execv("qemu-system-x86_64", flags)

@@ -478,7 +478,7 @@ SYSCALL_DEFINER(sys_wait4)
     // 查找pid为指定值的进程
     // ps: 这里判断子进程的方法没有按照posix 2008来写。
     // todo: 根据进程树判断是否为当前进程的子进程
-    for (proc = &initial_proc_union.pcb; proc->next_pcb != &initial_proc_union.pcb; proc = proc->next_pcb)
+    for (proc = &initial_process; proc->next_pcb != &initial_process; proc = proc->next_pcb)
     {
         if (proc->next_pcb->pid == pid)
         {

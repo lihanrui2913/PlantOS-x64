@@ -51,6 +51,13 @@ extern uint64_t PAGE_OFFSET;
 
 void init_pmm();
 
+void init_bitmap(uint64_t start, uint64_t size);
+void bitmap_set(uint64_t start, bool value);
+bool bitmap_get(uint64_t start);
+void bitmap_set_range(uint64_t start, uint64_t end, bool value);
+uint64_t bitmap_find_range(uint64_t length, bool value);
+
+uint64_t allocate_frames(uint64_t cnt);
 uint64_t allocate_frame();
 void deallocate_frame(uint64_t frame);
 
@@ -59,7 +66,7 @@ uint64_t *get_cr3();
 /* VMM */
 
 #define HEAP_START 0xfffff00000000000
-#define HEAP_SIZE (2 * 1024 * 1024)
+#define HEAP_SIZE (8 * 1024 * 1024)
 
 #define SPECIAL_MEMOEY_MAPPING_VIRT_ADDR_BASE 0xFFFFA00000000000
 #define ACPI_RSDT_MAPPING_OFFSET 0x10000000
@@ -123,8 +130,12 @@ void init_vmm();
 
 void vmm_mmap(uint64_t proc_page_table_addr, bool is_phys, uint64_t virt_addr_start, uint64_t phys_addr_start, uint64_t length, uint64_t flags, bool user, bool flush);
 
+void init_allocator(uint64_t start, uint64_t size);
+
 void *kalloc(uint64_t size);
+void *kalloc_aligned(uint64_t size, uint64_t alignment);
 void kfree(void *p);
+void kfree_aligned(void *p);
 
 uint64_t physical_mapping(uint64_t linear);
 bool mm_check_mapped(uint64_t page_table_phys_addr, uint64_t virt_addr);

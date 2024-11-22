@@ -8,7 +8,7 @@
 #define PROC_MAX_FD_NUM 16
 
 // 进程的内核栈大小 32K
-#define STACK_SIZE (32UL * 1024)
+#define STACK_SIZE (32768UL)
 
 // 进程的运行状态
 // 正在运行
@@ -76,7 +76,6 @@ struct process_control_block
 	volatile long state;
 	// 进程标志：进程、线程、内核线程
 	unsigned long flags;
-	int64_t preempt_count; // 持有的自旋锁的数量
 	long signal;
 	long cpu_id; // 当前进程在哪个CPU核心上运行
 	// 内存空间分布结构体， 记录内存页表和程序段信息
@@ -109,13 +108,6 @@ struct process_control_block
 	int32_t exit_code;						// 进程退出时的返回码
 	wait_queue_node_t wait_child_proc_exit; // 子进程退出等待队列
 };
-
-// 将进程的pcb和内核栈融合到一起,8字节对齐
-union proc_union
-{
-	struct process_control_block pcb;
-	uint64_t stack[STACK_SIZE / sizeof(uint64_t)];
-} __attribute__((aligned(STACK_SIZE)));
 
 struct tss_struct
 {

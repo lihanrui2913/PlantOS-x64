@@ -12,6 +12,13 @@
 
 __attribute__((used, section(".limine_requests"))) static volatile LIMINE_BASE_REVISION(3);
 
+__attribute__((used, section(".limine_requests"))) static volatile struct limine_stack_size_request stack_size_request =
+    {
+        .id = LIMINE_STACK_SIZE_REQUEST,
+        .revision = 3,
+        .stack_size = STACK_SIZE,
+};
+
 __attribute__((used, section(".limine_requests_start"))) static volatile LIMINE_REQUESTS_START_MARKER;
 
 __attribute__((used, section(".limine_requests_end"))) static volatile LIMINE_REQUESTS_END_MARKER;
@@ -23,9 +30,6 @@ void kmain(void)
         for (;;)
             __asm__("hlt");
     }
-
-    __asm__ __volatile__("movq %0, %%rbp" ::"r"((uint64_t)initial_proc_union.stack + STACK_SIZE));
-    __asm__ __volatile__("movq %0, %%rsp" ::"r"((uint64_t)initial_proc_union.stack + STACK_SIZE));
 
     init_printk();
 
@@ -54,25 +58,15 @@ void kstage2(void)
 {
     init_pmm();
     init_vmm();
-    init_terminal();
 
     set_tss_descriptor(10, &initial_tss[0]);
     uint64_t tss_item_addr = (uint64_t)phy_2_virt(0x7c00);
-    set_tss64((uint32_t *)&initial_tss[0], (uint64_t)initial_proc_union.stack + STACK_SIZE, (uint64_t)initial_proc_union.stack + STACK_SIZE, (uint64_t)initial_proc_union.stack + STACK_SIZE, tss_item_addr,
+    set_tss64((uint32_t *)&initial_tss[0], tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr,
               tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr);
 
     load_TR(10); // 加载TR寄存器
 
-    uint8_t *ptr = (uint8_t *)kalloc(STACK_SIZE) + STACK_SIZE;
-    ((struct process_control_block *)(ptr - STACK_SIZE))->cpu_id = 0;
-
-    initial_tss[0].ist1 = (uint64_t)ptr;
-    initial_tss[0].ist2 = (uint64_t)ptr;
-    initial_tss[0].ist3 = (uint64_t)ptr;
-    initial_tss[0].ist4 = (uint64_t)ptr;
-    initial_tss[0].ist5 = (uint64_t)ptr;
-    initial_tss[0].ist6 = (uint64_t)ptr;
-    initial_tss[0].ist7 = (uint64_t)ptr;
+    init_terminal();
 
     acpi_init();
 
@@ -86,13 +80,12 @@ void kstage2(void)
 
     init_smp();
 
-    apic_timer_init();
-
     current_pcb->cpu_id = 0;
-    current_pcb->preempt_count = 0;
     init_syscall();
     init_sched();
     init_process();
+
+    apic_timer_init();
 
     process_init_done = true;
 

@@ -68,8 +68,10 @@ void apic_timer_handler(uint64_t number, uint64_t param, struct pt_regs *regs)
 
 void apic_timer_ap_core_init()
 {
+    kinfo("Initializing apic timer for cpu %d", proc_current_cpu_id);
     apic_timer_install(APIC_TIMER_IRQ_NUM, &apic_timer_ticks_result);
     apic_timer_enable(APIC_TIMER_IRQ_NUM);
+    kinfo("Successfully initialized apic timer for cpu %d", proc_current_cpu_id);
 }
 
 /**
