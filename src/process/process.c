@@ -542,86 +542,86 @@ void init_process()
 int do_fork(struct pt_regs *regs, unsigned long clone_flags, unsigned long stack_start, unsigned long stack_size)
 {
     int retval = 0;
-    struct process_control_block *tsk = (struct process_control_block *)kalloc_aligned(STACK_SIZE, STACK_SIZE);
+    struct process_control_block *pcb = (struct process_control_block *)kalloc_aligned(STACK_SIZE, STACK_SIZE);
 
     io_mfence();
-    if (tsk == NULL)
+    if (pcb == NULL)
     {
         retval = -ENOMEM;
         return retval;
     }
 
     io_mfence();
-    memset(tsk, 0, sizeof(struct process_control_block));
+    memset(pcb, 0, sizeof(struct process_control_block));
     io_mfence();
     // 将当前进程的pcb复制到新的pcb内
-    memcpy(current_pcb, tsk, sizeof(struct process_control_block));
+    memcpy(current_pcb, pcb, sizeof(struct process_control_block));
     io_mfence();
 
     // 初始化进程的循环链表结点
-    list_init(&tsk->list);
+    list_init(&pcb->list);
 
     io_mfence();
     // 判断是否为内核态调用fork
     if (current_pcb->flags & PF_KTHREAD && stack_start != 0)
-        tsk->flags |= PF_KFORK;
+        pcb->flags |= PF_KFORK;
 
-    tsk->priority = 2;
+    pcb->priority = 2;
 
     // 增加全局的pid并赋值给新进程的pid
     spin_lock(&process_global_pid_write_lock);
-    tsk->pid = process_global_pid++;
+    pcb->pid = process_global_pid++;
     io_mfence();
     // 加入到进程链表中
-    tsk->next_pcb = initial_process.next_pcb;
+    pcb->next_pcb = initial_process.next_pcb;
     io_mfence();
-    initial_process.next_pcb = tsk;
+    initial_process.next_pcb = pcb;
     io_mfence();
-    tsk->parent_pcb = current_pcb;
+    pcb->parent_pcb = current_pcb;
     io_mfence();
 
     spin_unlock(&process_global_pid_write_lock);
 
-    tsk->cpu_id = proc_current_cpu_id;
-    tsk->state = PROC_UNINTERRUPTIBLE;
+    pcb->cpu_id = proc_current_cpu_id;
+    pcb->state = PROC_UNINTERRUPTIBLE;
 
-    tsk->parent_pcb = current_pcb;
-    wait_queue_init(&tsk->wait_child_proc_exit, NULL);
+    pcb->parent_pcb = current_pcb;
+    wait_queue_init(&pcb->wait_child_proc_exit, NULL);
     io_mfence();
-    list_init(&tsk->list);
+    list_init(&pcb->list);
 
     retval = -ENOMEM;
 
     // 拷贝标志位
-    if (process_copy_flags(clone_flags, tsk))
+    if (process_copy_flags(clone_flags, pcb))
         goto copy_flags_failed;
 
     // 拷贝内存空间分布结构体
-    if (process_copy_mm(clone_flags, tsk))
+    if (process_copy_mm(clone_flags, pcb))
         goto copy_mm_failed;
 
     // 拷贝线程结构体
-    if (process_copy_thread(clone_flags, tsk, stack_start, stack_size, regs))
+    if (process_copy_thread(clone_flags, pcb, stack_start, stack_size, regs))
         goto copy_thread_failed;
 
     // 拷贝成功
-    retval = tsk->pid;
+    retval = pcb->pid;
 
-    tsk->flags &= ~PF_KFORK;
+    pcb->flags &= ~PF_KFORK;
 
     // 唤醒进程
-    process_wakeup(tsk);
+    process_wakeup(pcb);
 
     return retval;
 
 copy_thread_failed:;
     // 回收线程
-    process_exit_thread(tsk);
+    process_exit_thread(pcb);
 copy_mm_failed:;
     // 回收内存空间分布结构体
-    process_exit_mm(tsk);
+    process_exit_mm(pcb);
 copy_flags_failed:;
-    kfree(tsk);
+    kfree(pcb);
     return retval;
 
     return 0;
@@ -703,10 +703,68 @@ uint64_t process_copy_mm(uint64_t clone_flags, struct process_control_block *pcb
     // 分配新的内存空间分布结构体
     struct mm_struct *new_mms = (struct mm_struct *)kalloc(sizeof(struct mm_struct));
     memset(new_mms, 0, sizeof(struct mm_struct));
-    new_mms->pgd = (pml4t_t *)allocate_frame();
-    memcpy(phy_2_virt(current_pcb->mm->pgd), phy_2_virt(new_mms->pgd), PAGE_4K_SIZE);
+
+    memcpy(current_pcb->mm, new_mms, sizeof(struct mm_struct));
 
     pcb->mm = new_mms;
+
+    // 分配顶层页表, 并设置顶层页表的物理地址
+    new_mms->pgd = (pml4t_t *)allocate_frame();
+    // 由于高2K部分为内核空间，在接下来需要覆盖其数据，因此不用清零
+    memset(phy_2_virt(new_mms->pgd), 0, PAGE_4K_SIZE / 2);
+    // 拷贝内核空间的页表指针
+    memcpy(phy_2_virt(initial_proc[proc_current_cpu_id]->mm->pgd) + 256, phy_2_virt(new_mms->pgd) + 256, PAGE_4K_SIZE / 2);
+
+    uint64_t *current_pgd = (uint64_t *)phy_2_virt(current_pcb->mm->pgd);
+
+    uint64_t *new_pml4t = (uint64_t *)phy_2_virt(new_mms->pgd);
+    // 迭代地拷贝用户空间
+    for (int i = 0; i <= 255; ++i)
+    {
+        // 当前页表项为空
+        if ((*(uint64_t *)(current_pgd + i)) == 0)
+            continue;
+
+        // 分配新的二级页表
+        uint64_t *new_pdpt = (uint64_t *)phy_2_virt(allocate_frame());
+        memset(new_pdpt, 0, PAGE_4K_SIZE);
+
+        // 在新的一级页表中设置新的二级页表表项
+        set_pml4t(new_pml4t + i, mk_pml4t(virt_2_phy(new_pdpt), (*(current_pgd + i)) & 0xfffUL));
+
+        uint64_t *current_pdpt = (uint64_t *)phy_2_virt((*(uint64_t *)(current_pgd + i)) & (~0xfffUL));
+        for (int j = 0; j < 512; ++j)
+        {
+            if (*(current_pdpt + j) == 0)
+                continue;
+
+            // 分配新的三级页表
+            uint64_t *new_pdt = (uint64_t *)phy_2_virt(allocate_frame());
+            memset(new_pdt, 0, PAGE_4K_SIZE);
+            // 在二级页表中填写新的三级页表
+            // 在新的二级页表中设置三级页表的表项
+            set_pdpt((uint64_t *)(new_pdpt + j), mk_pdpt(virt_2_phy(new_pdt), (*(current_pdpt + j)) & 0xfffUL));
+
+            uint64_t *current_pdt = (uint64_t *)phy_2_virt((*(current_pdpt + j)) & (~0xfffUL));
+            // kdebug("current_pdt=%#018lx", current_pdt);
+
+            // 循环拷贝三级页表
+            for (int k = 0; k < 512; ++k)
+            {
+
+                if (*(current_pdt + k) == 0)
+                    continue;
+
+                // 获取新的物理页
+                uint64_t pa = allocate_frame();
+
+                memset((void *)phy_2_virt(pa), 0, PAGE_4K_SIZE);
+                set_pdt((uint64_t *)(new_pdt + k), mk_pdt(pa, *(current_pdt + k) & 0x1ffUL));
+                // 拷贝数据
+                memcpy(phy_2_virt(pa), phy_2_virt((*(current_pdt + k)) & (~0x1ffUL)), PAGE_4K_SIZE);
+            }
+        }
+    }
 
     return retval;
 }
@@ -728,11 +786,47 @@ uint64_t process_exit_mm(struct process_control_block *pcb)
     }
     if (pcb->mm->pgd == NULL)
     {
-        kdebug("pcb->mm==NULL");
+        kdebug("pcb->mm->pgd==NULL");
         return 0;
     }
+    // 获取顶层页表
+    pml4t_t *current_pgd = (pml4t_t *)phy_2_virt(pcb->mm->pgd);
 
-    deallocate_frame((uint64_t)pcb->mm->pgd);
+    // 迭代地释放用户空间
+    for (int i = 0; i <= 255; ++i)
+    {
+        // 当前页表项为空
+        if ((current_pgd + i)->pml4t == 0)
+            continue;
+
+        // 二级页表entry
+        pdpt_t *current_pdpt = (pdpt_t *)phy_2_virt((current_pgd + i)->pml4t & (~0xfffUL));
+        // 遍历二级页表
+        for (int j = 0; j < 512; ++j)
+        {
+            if ((current_pdpt + j)->pdpt == 0)
+                continue;
+
+            // 三级页表的entry
+            pdt_t *current_pdt = (pdt_t *)phy_2_virt((current_pdpt + j)->pdpt & (~0xfffUL));
+
+            // 释放三级页表的内存页
+            for (int k = 0; k < 512; ++k)
+            {
+                if ((current_pdt + k)->pdt == 0)
+                    continue;
+                // 释放内存页
+                deallocate_frame(virt_2_phy((current_pdt + k)->pdt & (~0x1fffUL)));
+            }
+            // 释放三级页表
+            deallocate_frame((uint64_t)current_pdt);
+        }
+        // 释放二级页表
+        deallocate_frame((uint64_t)current_pdpt);
+    }
+    // 释放顶层页表
+    deallocate_frame((uint64_t)current_pgd);
+
     // 释放内存空间分布结构体
     kfree(pcb->mm);
 

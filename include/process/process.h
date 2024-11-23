@@ -15,7 +15,7 @@ struct process_control_block;
 static inline struct process_control_block *get_current_pcb()
 {
 	struct process_control_block *current = NULL;
-	// 利用了当前pcb和栈空间总大小为4k大小对齐，将rsp低12位清空，即可获得pcb的起始地址
+	// 利用了当前pcb和栈空间总大小为STACK_SIZE大小对齐，将rsp低位清空，即可获得pcb的起始地址
 	__asm__ __volatile__("andq %%rsp, %0   \n\t"
 						 : "=r"(current)
 						 : "0"(~(STACK_SIZE - 1)));

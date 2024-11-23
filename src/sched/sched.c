@@ -53,13 +53,16 @@ void sched_enqueue(struct process_control_block *pcb)
     sched_cfs_enqueue(pcb);
 }
 
+spinlock_t sched_lock;
+
 /**
  * @brief 调度函数
  *
  */
 void sched_cfs()
 {
-    cli();
+    uint64_t rflags;
+    spin_lock_irqsave(&sched_lock, rflags);
 
     current_pcb->flags &= ~PF_NEED_SCHED;
     struct process_control_block *proc = sched_cfs_dequeue();
@@ -107,7 +110,7 @@ void sched_cfs()
         }
     }
 
-    sti();
+    spin_unlock_irqrestore(&sched_lock, rflags);
 }
 
 /**
@@ -119,12 +122,17 @@ void sched()
     sched_cfs();
 }
 
+spinlock_t update_lock;
+
 /**
  * @brief 当时钟中断到达时，更新时间片
  *
  */
 void sched_update_jiffies()
 {
+    uint64_t rflags;
+    spin_lock_irqsave(&update_lock, rflags);
+
     switch (current_pcb->priority)
     {
     case 0:
@@ -141,6 +149,8 @@ void sched_update_jiffies()
     // 时间片耗尽，标记可调度
     if (sched_cfs_ready_queue[proc_current_cpu_id].cpu_exec_proc_jiffies <= 0)
         current_pcb->flags |= PF_NEED_SCHED;
+
+    spin_unlock_irqrestore(&update_lock, rflags);
 }
 
 /**
@@ -149,6 +159,9 @@ void sched_update_jiffies()
  */
 void init_sched()
 {
+    spin_init(&sched_lock);
+    spin_init(&update_lock);
+
     memset(&sched_cfs_ready_queue, 0, sizeof(struct sched_queue_t) * MAX_CPU_NUM);
     for (int i = 0; i < MAX_CPU_NUM; ++i)
     {

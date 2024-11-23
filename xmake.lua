@@ -80,10 +80,10 @@ end)
 on_run(function(target)
     import("core.project.config")
 
-    local flags = {"-M", "q35", "-m", "4g", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
+    local flags = {"-M", "q35", "-m", "8g", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
                    "-cpu", "qemu64,+x2apic", "-cdrom", config.buildir() .. "/PlantOS.iso", "-boot", "d", "-drive",
                    "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img", "-device", "ahci,id=ahci",
-                   "-device", "ide-hd,drive=root,bus=ahci.1"};
+                   "-device", "ide-hd,drive=root,bus=ahci.1", "--enable-kvm"};
 
-    os.execv("qemu-system-x86_64", flags)
+    os.execv("sudo qemu-system-x86_64", flags)
 end)

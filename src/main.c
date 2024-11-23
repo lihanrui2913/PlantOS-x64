@@ -33,8 +33,6 @@ void kmain(void)
 
     init_printk();
 
-    color_printk(WHITE, BLACK, "Plant OS x64 starting...\n");
-
     struct idtr p;
     p.idt_vaddr = (uint64_t)IDT_Table;
     p.size = sizeof(IDT_Table) - 1;
@@ -67,6 +65,8 @@ void kstage2(void)
     load_TR(10); // 加载TR寄存器
 
     init_terminal();
+
+    color_printk(GREEN, BLACK, "Plant OS x64 starting...\n");
 
     acpi_init();
 

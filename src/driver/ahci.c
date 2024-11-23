@@ -259,18 +259,14 @@ int ahci_init_device(struct hba_port *port);
 int ahci_read(void *dev, void *buf, size_t count, idx_t idx, int flags)
 {
     struct hba_port *port = (struct hba_port *)dev;
-    cli();
     int ret = port->device->ops.read_buffer(port, idx, buf, count);
-    sti();
     return ret;
 }
 
 int ahci_write(void *dev, void *buf, size_t count, idx_t idx, int flags)
 {
     struct hba_port *port = (struct hba_port *)dev;
-    cli();
     int ret = port->device->ops.write_buffer(port, idx, buf, count);
-    sti();
     return ret;
 }
 
@@ -333,7 +329,7 @@ void init_ahci()
             }
 
             struct hba_port *port =
-                (struct hba_port *)phy_2_virt(allocate_frame());
+                (struct hba_port *)kalloc_aligned(sizeof(struct hba_port), PAGE_4K_SIZE);
             hba_reg_t *port_regs =
                 (hba_reg_t *)(&hba.base[HBA_RPBASE + i * HBA_RPSIZE]);
 
@@ -641,9 +637,11 @@ int hba_prepare_cmd(struct hba_port *port,
 
     if (buffer)
     {
+        uint64_t offset = (uint64_t)buffer & 0xFFF;
+        uint64_t phys_addr = physical_mapping((uint64_t)buffer) + offset;
         cmd_header->prdt_len = 1;
         cmd_table->entries[0] =
-            (struct hba_prdte){.data_base = virt_2_phy((uint64_t)buffer),
+            (struct hba_prdte){.data_base = phys_addr,
                                .byte_count = size - 1};
     }
 

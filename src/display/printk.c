@@ -348,103 +348,6 @@ int vsprintf(char *buf, const char *fmt, va_list args)
     return str - buf;
 }
 
-int do_scroll(bool direction, int pixels)
-{
-    if (direction == true) // 向上滚动
-    {
-        if (pixels > pos.YResolution)
-            return -1;
-        // 无需滚动
-        if (pixels == 0)
-            return 0;
-        unsigned int src = pixels * pos.XResolution;
-
-        memcpy((pos.FB_addr + src), pos.FB_addr, sizeof(unsigned int) * (pos.FB_length - src));
-        memset(pos.FB_addr + (pos.FB_length - src), 0, sizeof(unsigned int) * (src));
-
-        return 0;
-    }
-    else
-        return -1;
-    return 0;
-}
-
-/**
- * @brief 滚动窗口（尚不支持向下滚动）
- *
- * @param direction  方向，向上滑动为true,否则为false
- * @param pixels 要滑动的像素数量
- * @param animation 是否包含滑动动画
- */
-static int scroll(bool direction, int pixels, bool animation)
-{
-    // 暂时不支持反方向滚动
-    if (direction == false)
-        return -1;
-    // 为了保证打印字符正确，需要对pixel按照字体高度对齐
-    int md = pixels % pos.XCharSize;
-    if (md)
-        pixels = pixels + pos.YCharSize - md;
-
-    if (animation == false)
-        return do_scroll(direction, pixels);
-    else
-    {
-
-        int steps;
-        if (pixels > 10)
-            steps = 5;
-        else
-            steps = pixels % 10;
-        int half_steps = steps / 2;
-
-        // 计算加速度
-        double accelerate = 0.5 * pixels / (half_steps * half_steps);
-        int current_pixels = 0;
-        double delta_x;
-
-        int trace[13] = {0};
-        int js_trace = 0;
-        // 加速阶段
-        for (int i = 1; i <= half_steps; ++i)
-        {
-            trace[js_trace] = (int)(accelerate * i + 0.5);
-            current_pixels += trace[js_trace];
-            do_scroll(direction, trace[js_trace]);
-
-            ++js_trace;
-        }
-
-        // 强制使得位置位于1/2*pixels
-        if (current_pixels < pixels / 2)
-        {
-            delta_x = pixels / 2 - current_pixels;
-            current_pixels += delta_x;
-            do_scroll(direction, delta_x);
-        }
-
-        // 减速阶段，是加速阶段的重放
-        for (int i = js_trace - 1; i >= 0; --i)
-        {
-            current_pixels += trace[i];
-            do_scroll(direction, trace[i]);
-        }
-
-        if (current_pixels > pixels)
-            color_printk(RED, BLACK, "During scrolling: scrolled pixels over bound!");
-
-        // 强制使得位置位于pixels
-        if (current_pixels < pixels)
-        {
-            delta_x = pixels - current_pixels;
-            current_pixels += delta_x;
-            do_scroll(direction, delta_x);
-        }
-    }
-
-    return 0;
-}
-
 static char *const color_codes[] = {
     [BLACK] = "0",
     [RED] = "1",
@@ -470,8 +373,8 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
     int line = 0;
     va_list args;
 
-    cli();
-    spin_lock(&global_printk_lock);
+    uint64_t rflags;
+    spin_lock_irqsave(&global_printk_lock, rflags);
 
     if (use_terminal)
     {
@@ -488,8 +391,7 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         strcat(buf, "\033[0m");
 
         terminal_print(buf);
-        spin_unlock(&global_printk_lock);
-        sti();
+        spin_unlock_irqrestore(&global_printk_lock, rflags);
         return i;
     }
 
@@ -549,8 +451,7 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         }
     }
 
-    spin_unlock(&global_printk_lock);
-    sti();
+    spin_unlock_irqrestore(&global_printk_lock, rflags);
 
     return i;
 }

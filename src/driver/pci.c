@@ -449,7 +449,7 @@ void init_pci()
     kinfo("Total pci device and function num = %d", count_device_list);
 
     struct pci_device_structure_header_t *ptr = container_of(pci_device_structure_list, struct pci_device_structure_header_t, list);
-    for (int i = 0; i < count_device_list; ++i)
+    for (uint32_t i = 0; i < count_device_list; ++i)
     {
         if (ptr->HeaderType == 0x0)
         {
@@ -499,7 +499,7 @@ void pci_get_device_structure(uint8_t class_code, uint8_t sub_class, struct pci_
     struct pci_device_structure_header_t *ptr = container_of(pci_device_structure_list, struct pci_device_structure_header_t, list);
     *count_res = 0;
 
-    for (int i = 0; i < count_device_list; ++i)
+    for (uint32_t i = 0; i < count_device_list; ++i)
     {
         if ((ptr->Class_code == class_code) && (ptr->SubClass == sub_class))
         {
