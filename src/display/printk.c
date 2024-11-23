@@ -461,6 +461,8 @@ int sprintk(char *buf, const char *fmt, ...)
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(buf, fmt, args);
+    int n = vsprintf(buf, fmt, args);
     va_end(args);
+
+    return n;
 }

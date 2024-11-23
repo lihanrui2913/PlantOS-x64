@@ -78,8 +78,6 @@ void unregister_softirq(uint32_t irq_num)
  */
 void do_softirq()
 {
-    sti();
-
     for (uint32_t i = 0; i < MAX_SOFTIRQ_NUM && softirq_pending; ++i)
     {
         if (softirq_pending & (1 << i) && softirq_vector[i].action != NULL && (!(get_softirq_running() & (1 << i))))
@@ -102,13 +100,12 @@ void do_softirq()
             }
         }
     }
-
-    cli();
 }
 
 int clear_softirq_pending(uint32_t irq_num)
 {
     clear_softirq_running(irq_num);
+    return 0;
 }
 
 void init_softirq()

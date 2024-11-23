@@ -61,8 +61,8 @@ spinlock_t sched_lock;
  */
 void sched_cfs()
 {
-    uint64_t rflags;
-    spin_lock_irqsave(&sched_lock, rflags);
+    cli();
+    spin_lock(&sched_lock);
 
     current_pcb->flags &= ~PF_NEED_SCHED;
     struct process_control_block *proc = sched_cfs_dequeue();
@@ -110,7 +110,8 @@ void sched_cfs()
         }
     }
 
-    spin_unlock_irqrestore(&sched_lock, rflags);
+    spin_unlock(&sched_lock);
+    sti();
 }
 
 /**

@@ -24,17 +24,16 @@ int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 int usleep(useconds_t usec)
 {
     struct timespec ts = {
-        tv_sec : (long int)(usec / 1000000),
-        tv_nsec : (long int)(usec % 1000000) * 1000UL
-    };
+        .tv_sec = (long int)(usec / 1000000),
+        .tv_nsec = (long int)(usec % 1000000) * 1000UL};
 
     return nanosleep(&ts, NULL);
 }
 
 // /**
 //  * @brief 获取系统当前cpu时间
-//  * 
-//  * @return clock_t 
+//  *
+//  * @return clock_t
 //  */
 // clock_t clock()
 // {

@@ -15,3 +15,8 @@ mount ${LOOP_DEVICE}p1 mnt_point
 
 mkdir mnt_point/dev/
 touch mnt_point/dev/kbd.dev
+
+mkdir -p mnt_point/efi/boot/
+cp assets/limine/bootx64.efi mnt_point/efi/boot/
+cp assets/limine/limine-bios.sys mnt_point/
+cp assets/limine/limine.conf mnt_point/

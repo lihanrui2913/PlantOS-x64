@@ -16,7 +16,7 @@
 
 #include "driver/device.h"
 #include "driver/pci.h"
-#include "driver/ahci.h"
+#include "driver/nvme.h"
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
@@ -40,7 +40,7 @@ struct thread_struct initial_thread =
         .trap_num = 0,
         .err_code = 0};
 
-extern struct process_control_block initial_process =
+struct process_control_block initial_process =
     {
         .state = PROC_UNINTERRUPTIBLE,
         .flags = PF_KTHREAD,
@@ -57,7 +57,6 @@ extern struct process_control_block initial_process =
         .next_pcb = &initial_process,
         .parent_pcb = &initial_process,
         .exit_code = 0,
-        .wait_child_proc_exit = 0,
 };
 
 struct process_control_block *initial_proc[MAX_CPU_NUM] = {&initial_process, 0};
@@ -179,7 +178,7 @@ static int process_load_elf_file(struct pt_regs *regs, char *path)
     memset(buf, 0, PAGE_4K_SIZE);
     uint64_t pos = 0;
     pos = filp->file_ops->lseek(filp, 0, SEEK_SET);
-    retval = filp->file_ops->read(filp, (char *)buf, sizeof(Elf64_Ehdr), &pos);
+    retval = filp->file_ops->read(filp, (char *)buf, sizeof(Elf64_Ehdr), (long *)&pos);
     retval = 0;
     if (!elf_check(buf))
     {
@@ -217,7 +216,7 @@ static int process_load_elf_file(struct pt_regs *regs, char *path)
     pos = ehdr.e_phoff;
     // 读取所有的phdr
     pos = filp->file_ops->lseek(filp, pos, SEEK_SET);
-    filp->file_ops->read(filp, (char *)buf, (uint64_t)ehdr.e_phentsize * (uint64_t)ehdr.e_phnum, &pos);
+    filp->file_ops->read(filp, (char *)buf, (uint64_t)ehdr.e_phentsize * (uint64_t)ehdr.e_phnum, (long *)&pos);
     if ((unsigned long)filp <= 0)
     {
         kdebug("(unsigned long)filp=%d", (long)filp);
@@ -256,7 +255,7 @@ static int process_load_elf_file(struct pt_regs *regs, char *path)
             if (remain_file_size != 0)
             {
                 int64_t to_trans = (remain_file_size > PAGE_4K_SIZE) ? PAGE_4K_SIZE : remain_file_size;
-                val = filp->file_ops->read(filp, (char *)virt_base, to_trans, &pos);
+                val = filp->file_ops->read(filp, (char *)virt_base, to_trans, (long *)&pos);
             }
 
             if (val < 0)
@@ -337,7 +336,6 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 
         for (argc = 0; argc < 8 && argv[argc] != NULL; ++argc)
         {
-
             if (*argv[argc] == 0)
                 break;
 
@@ -393,10 +391,10 @@ uint64_t initial_kernel_thread(uint64_t arg)
 
     init_device();
     init_pci();
-    init_ahci();
 
     init_ps2keyboard();
 
+    init_nvme();
     init_fs();
     init_fat32();
 
@@ -517,6 +515,14 @@ void init_process()
     initial_mm.pgd = (pml4t_t *)get_cr3();
     initial_mm.brk_end = initial_process.addr_limit;
     initial_tss[0].rsp0 = initial_thread.rbp;
+    uint64_t ist_stack_addr = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE) + STACK_SIZE;
+    initial_tss[0].ist1 = ist_stack_addr;
+    initial_tss[0].ist2 = ist_stack_addr;
+    initial_tss[0].ist3 = ist_stack_addr;
+    initial_tss[0].ist4 = ist_stack_addr;
+    initial_tss[0].ist5 = ist_stack_addr;
+    initial_tss[0].ist6 = ist_stack_addr;
+    initial_tss[0].ist7 = ist_stack_addr;
 
     memcpy(&initial_process, current_pcb, sizeof(struct process_control_block));
 
@@ -710,10 +716,8 @@ uint64_t process_copy_mm(uint64_t clone_flags, struct process_control_block *pcb
 
     // 分配顶层页表, 并设置顶层页表的物理地址
     new_mms->pgd = (pml4t_t *)allocate_frame();
-    // 由于高2K部分为内核空间，在接下来需要覆盖其数据，因此不用清零
-    memset(phy_2_virt(new_mms->pgd), 0, PAGE_4K_SIZE / 2);
     // 拷贝内核空间的页表指针
-    memcpy(phy_2_virt(initial_proc[proc_current_cpu_id]->mm->pgd) + 256, phy_2_virt(new_mms->pgd) + 256, PAGE_4K_SIZE / 2);
+    memcpy(phy_2_virt(initial_proc[proc_current_cpu_id]->mm->pgd), phy_2_virt(new_mms->pgd), PAGE_4K_SIZE);
 
     uint64_t *current_pgd = (uint64_t *)phy_2_virt(current_pcb->mm->pgd);
 

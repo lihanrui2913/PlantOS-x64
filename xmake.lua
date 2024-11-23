@@ -6,7 +6,6 @@ set_defaultmode("debug")
 
 set_optimize("none")
 set_languages("c23")
-set_warnings("all", "extra")
 
 set_policy("run.autobuild", true)
 set_policy("check.auto_ignore_flags", false)
@@ -16,7 +15,7 @@ add_arflags("-target x86_64-freestanding")
 add_ldflags("-target x86_64-freestanding")
 
 add_cflags("-mno-80387", "-mno-mmx", "-mno-sse", "-mno-sse2", "-msoft-float")
-add_cflags("-mno-red-zone", "-mcmodel=large", "-static", "-fno-sanitize=undefined")
+add_cflags("-mno-red-zone", "-mcmodel=large", "-fno-sanitize=undefined")
 
 target("kernel")
 set_kind("binary")
@@ -48,7 +47,7 @@ set_default(false)
 add_includedirs("usr/libc")
 add_files("usr/apps/init/**.c")
 
-target("iso")
+target("disk")
 set_kind("phony")
 add_deps("kernel")
 add_deps("init")
@@ -56,34 +55,24 @@ set_default(true)
 
 on_build(function(target)
     import("core.project.project")
-    local iso_dir = "$(buildir)/iso_dir"
-
-    os.mkdir(iso_dir)
-    os.cp("assets/limine", iso_dir)
 
     local kernel_target = project.target("kernel")
-    os.cp(kernel_target:targetfile(), iso_dir .. "/kernel.elf")
-
-    local iso_file = "$(buildir)/PlantOS.iso"
-    local efi_flags = "--efi-boot limine/limine-uefi-cd.bin"
-    local bios_flags = "-b limine/limine-bios-cd.bin -no-emul-boot -boot-info-table"
-    os.run("xorriso -as mkisofs %s %s %s -o %s", bios_flags, efi_flags, iso_dir, iso_file)
-    print("ISO image created at: %s", iso_file)
-
     local init_target = project.target("init")
-    os.run("bash tools/create_hdd_image.sh");
-    os.run("sudo bash tools/mount_vdisk.sh");
+    os.run("bash tools/create_hdd_image.sh")
+    os.run("sudo bash tools/mount_vdisk.sh")
+    os.run("sudo cp " .. kernel_target:targetfile() .. " mnt_point/kernel.elf")
     os.run("sudo cp " .. init_target:targetfile() .. " mnt_point/init.elf")
-    os.run("sudo bash tools/umount_vdisk.sh");
+    os.run("sudo bash tools/umount_vdisk.sh")
+    os.run("assets/limine/limine bios-install build/hdd.img")
 end)
 
 on_run(function(target)
     import("core.project.config")
 
     local flags = {"-M", "q35", "-m", "8g", "-smp", "4", "-drive", "if=pflash,format=raw,file=assets/ovmf-code.fd",
-                   "-cpu", "qemu64,+x2apic", "-cdrom", config.buildir() .. "/PlantOS.iso", "-boot", "d", "-drive",
-                   "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img", "-device", "ahci,id=ahci",
-                   "-device", "ide-hd,drive=root,bus=ahci.1", "--enable-kvm"};
+                   "-cpu", "IvyBridge,+x2apic", "-drive",
+                   "if=none,format=raw,id=root,file=" .. config.buildir() .. "/hdd.img", "-device", 
+                   "nvme,drive=root,serial=1234", "--enable-kvm"};
 
     os.execv("sudo qemu-system-x86_64", flags)
 end)

@@ -2,7 +2,7 @@ echo "Creating virtual disk image..."
 
 rm -rf build/hdd.img
 # 创建一至少为16MB磁盘镜像（类型选择raw）
-qemu-img create -f raw build/hdd.img 16M
+qemu-img create -f raw build/hdd.img 64M
 
 # 使用fdisk把build/hdd.img的分区表设置为MBR格式(下方的空行请勿删除)
 fdisk build/hdd.img <<EOF
@@ -12,6 +12,7 @@ n
 
 
 
+a
 w
 EOF
 

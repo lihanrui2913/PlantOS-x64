@@ -247,7 +247,7 @@ int pci_start_msi(void *header)
 
         tmp = pci_read_config(ptr->bus, ptr->device, ptr->func, cap_ptr); // 读取cap+0x0处的值
 
-        if (tmp & 0xff != 0x5)
+        if ((tmp & 0xff) != 0x5)
             return -ENOSYS;
 
         // 使能msi
@@ -264,7 +264,7 @@ int pci_start_msi(void *header)
 
         tmp = pci_read_config(ptr->bus, ptr->device, ptr->func, cap_ptr); // 读取cap+0x0处的值
 
-        if (tmp & 0xff != 0x5)
+        if ((tmp & 0xff) != 0x5)
             return -ENOSYS;
 
         // 使能msi
@@ -305,7 +305,7 @@ int pci_disable_msi(void *header)
 
         tmp = pci_read_config(ptr->bus, ptr->device, ptr->func, cap_ptr); // 读取cap+0x0处的值
 
-        if (tmp & 0xff != 0x5)
+        if ((tmp & 0xff) != 0x5)
             return -ENOSYS;
 
         // 禁用msi
@@ -322,7 +322,7 @@ int pci_disable_msi(void *header)
 
         tmp = pci_read_config(ptr->bus, ptr->device, ptr->func, cap_ptr); // 读取cap+0x0处的值
 
-        if (tmp & 0xff != 0x5)
+        if ((tmp & 0xff) != 0x5)
             return -ENOSYS;
 
         // 禁用msi

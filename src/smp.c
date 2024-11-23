@@ -21,8 +21,6 @@ __attribute__((used, section(".limine_requests"))) static volatile struct limine
 
 void kap_main(struct limine_smp_info *cpu)
 {
-    ksuccess("AP %d starting", cpu->processor_id);
-
     struct idtr p;
     p.idt_vaddr = (uint64_t)IDT_Table;
     p.size = sizeof(IDT_Table) - 1;
@@ -49,23 +47,23 @@ void init_smp()
 
 void kap_stage2(struct limine_smp_info *cpu)
 {
-    uint64_t tss_item_addr = (uint64_t)phy_2_virt(0x7c00);
-    set_tss64((uint32_t *)cpu_core_info[cpu->processor_id].tss_vaddr, (uint64_t)current_pcb, (uint64_t)current_pcb, (uint64_t)current_pcb, tss_item_addr,
+    uint64_t tss_item_addr = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE) + STACK_SIZE;
+    set_tss64((uint32_t *)cpu_core_info[cpu->processor_id].tss_vaddr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr,
               tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr);
 
     load_TR(10 + cpu->processor_id * 2);
 
-    apic_init_ap_core_local_apic();
-
     while (process_init_done == false)
         pause();
+
+    apic_init_ap_core_local_apic();
 
     memcpy(&initial_process, current_pcb, sizeof(struct process_control_block));
     current_pcb->cpu_id = cpu->processor_id;
     current_pcb->preempt_count = 0;
     initial_proc[proc_current_cpu_id] = current_pcb;
 
-    apic_timer_ap_core_init();
+    // apic_timer_ap_core_init();
 
     for (;;)
     {

@@ -7,8 +7,8 @@
 // 进程最大可拥有的文件描述符数量
 #define PROC_MAX_FD_NUM 16
 
-// 进程的内核栈大小 64K
-#define STACK_SIZE (65536UL)
+// 进程的内核栈大小 32K
+#define STACK_SIZE (32768UL)
 
 // 进程的运行状态
 // 正在运行

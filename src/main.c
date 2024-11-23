@@ -58,8 +58,8 @@ void kstage2(void)
     init_vmm();
 
     set_tss_descriptor(10, &initial_tss[0]);
-    uint64_t tss_item_addr = (uint64_t)phy_2_virt(0x7c00);
-    set_tss64((uint32_t *)&initial_tss[0], (uint64_t)current_pcb, (uint64_t)current_pcb, (uint64_t)current_pcb, tss_item_addr,
+    uint64_t tss_item_addr = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE) + STACK_SIZE;
+    set_tss64((uint32_t *)&initial_tss[0], tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr,
               tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr, tss_item_addr);
 
     load_TR(10); // 加载TR寄存器
@@ -71,8 +71,7 @@ void kstage2(void)
     acpi_init();
 
     init_softirq();
-    current_pcb->cpu_id = 0;
-    current_pcb->preempt_count = 1;
+    current_pcb->preempt_count = 0;
     init_irq();
 
     init_timer();
@@ -84,6 +83,7 @@ void kstage2(void)
 
     init_syscall();
     init_sched();
+    current_pcb->cpu_id = 0;
     init_process();
 
     apic_timer_init();
