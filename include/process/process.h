@@ -2,7 +2,6 @@
 
 #include <glib.h>
 #include <syscall/syscall.h>
-#include <spinlock.h>
 #include "ptrace.h"
 #include <errno.h>
 #include <process/wait_queue.h>
@@ -47,9 +46,9 @@ static inline struct process_control_block *get_current_pcb()
 #define INITIAL_TSS                 \
 	{                               \
 		.reserved0 = 0,             \
-		.rsp0 = 0xffff800000007c00, \
-		.rsp1 = 0xffff800000007c00, \
-		.rsp2 = 0xffff800000007c00, \
+		.rsp0 = 0,                  \
+		.rsp1 = 0,                  \
+		.rsp2 = 0,                  \
 		.reserved1 = 0,             \
 		.ist1 = 0xffff800000007c00, \
 		.ist2 = 0xffff800000007c00, \

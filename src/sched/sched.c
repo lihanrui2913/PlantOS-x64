@@ -1,6 +1,5 @@
 #include "sched/sched.h"
 #include <display/kprint.h>
-#include <spinlock.h>
 
 struct sched_queue_t sched_cfs_ready_queue[MAX_CPU_NUM]; // 就绪队列
 
@@ -120,16 +119,12 @@ void sched()
     sched_cfs();
 }
 
-spinlock_t sched_update_jiffies_lock;
-
 /**
  * @brief 当时钟中断到达时，更新时间片
  *
  */
 void sched_update_jiffies()
 {
-    spin_lock(&sched_update_jiffies_lock);
-
     switch (current_pcb->priority)
     {
     case 0:
@@ -146,8 +141,6 @@ void sched_update_jiffies()
     // 时间片耗尽，标记可调度
     if (sched_cfs_ready_queue[proc_current_cpu_id].cpu_exec_proc_jiffies <= 0)
         current_pcb->flags |= PF_NEED_SCHED;
-
-    spin_unlock(&sched_update_jiffies_lock);
 }
 
 /**
@@ -156,7 +149,6 @@ void sched_update_jiffies()
  */
 void init_sched()
 {
-    spin_init(&sched_update_jiffies_lock);
     memset(&sched_cfs_ready_queue, 0, sizeof(struct sched_queue_t) * MAX_CPU_NUM);
     for (int i = 0; i < MAX_CPU_NUM; ++i)
     {

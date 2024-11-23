@@ -90,6 +90,7 @@ static inline void list_append(struct List *entry, struct List *node)
 {
 
     struct List *tail = entry->prev;
+    io_mfence();
     list_add(tail, node);
 }
 
@@ -101,6 +102,7 @@ static inline void list_del(struct List *entry)
 {
 
     entry->next->prev = entry->prev;
+    io_mfence();
     entry->prev->next = entry->next;
 }
 
@@ -111,6 +113,7 @@ static inline bool list_empty(struct List *entry)
      * @param entry 入口
      */
 
+    io_mfence();
     if (entry == entry->next && entry->prev == entry)
         return true;
     else
@@ -125,6 +128,7 @@ static inline bool list_empty(struct List *entry)
  */
 static inline struct List *list_prev(struct List *entry)
 {
+    io_mfence();
     if (entry->prev != NULL)
         return entry->prev;
     else
@@ -139,6 +143,7 @@ static inline struct List *list_prev(struct List *entry)
  */
 static inline struct List *list_next(struct List *entry)
 {
+    io_mfence();
     if (entry->next != NULL)
         return entry->next;
     else

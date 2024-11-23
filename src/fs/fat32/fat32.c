@@ -2,7 +2,6 @@
 #include "fs/fat32/fat_ent.h"
 #include <display/kprint.h>
 #include <fs/mbr.h>
-#include <spinlock.h>
 #include <mm/memory.h>
 #include "errno.h"
 
@@ -422,7 +421,7 @@ struct vfs_superblock_t *fat32_read_superblock(void *DPTE, uint8_t DPT_type, voi
     finode->create_time = 0;
     finode->create_date = 0;
     finode->write_date = 0;
-    finode->write_time;
+    finode->write_time = 0;
 
     return sb_ptr;
 }

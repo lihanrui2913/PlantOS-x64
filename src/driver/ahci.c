@@ -70,12 +70,12 @@ int __sata_buffer_io(struct hba_port *port,
         }
         else
         {
-            kfree(table);
+            kfree_aligned(table);
             return 1;
         }
     }
 
-    kfree(table);
+    kfree_aligned(table);
     return 0;
 }
 
@@ -185,12 +185,12 @@ void __scsi_buffer_io(struct hba_port *port,
         }
         else
         {
-            kfree(table);
+            kfree_aligned(table);
             return;
         }
     }
 
-    kfree(table);
+    kfree_aligned(table);
     return;
 }
 
@@ -259,20 +259,24 @@ int ahci_init_device(struct hba_port *port);
 int ahci_read(void *dev, void *buf, size_t count, idx_t idx, int flags)
 {
     struct hba_port *port = (struct hba_port *)dev;
-    port->device->ops.read_buffer(port, idx, buf, count);
+    cli();
+    int ret = port->device->ops.read_buffer(port, idx, buf, count);
+    sti();
+    return ret;
 }
 
 int ahci_write(void *dev, void *buf, size_t count, idx_t idx, int flags)
 {
     struct hba_port *port = (struct hba_port *)dev;
-    port->device->ops.write_buffer(port, idx, buf, count);
+    cli();
+    int ret = port->device->ops.write_buffer(port, idx, buf, count);
+    sti();
+    return ret;
 }
 
 void init_ahci()
 {
     pci_get_device_structure(0x01, 0x06, ahci_dev, &ahci_count);
-
-    cli();
 
     for (int i = 0; i < ahci_count; i++)
     {
@@ -308,7 +312,7 @@ void init_ahci()
         hba.base[HBA_RGHC] |= HBA_RGHC_RESET;
         wait_until(!(hba.base[HBA_RGHC] & HBA_RGHC_RESET));
 
-        hba.base[HBA_RGHC] |= HBA_RGHC_ahci_ENABLE;
+        hba.base[HBA_RGHC] |= HBA_RGHC_AHCI_ENABLE;
         hba.base[HBA_RGHC] |= HBA_RGHC_INTR_ENABLE;
 
         hba_reg_t cap = hba.base[HBA_RCAP];
@@ -329,7 +333,7 @@ void init_ahci()
             }
 
             struct hba_port *port =
-                (struct hba_port *)kalloc(sizeof(struct hba_port));
+                (struct hba_port *)phy_2_virt(allocate_frame());
             hba_reg_t *port_regs =
                 (hba_reg_t *)(&hba.base[HBA_RPBASE + i * HBA_RPSIZE]);
 
@@ -384,8 +388,6 @@ void init_ahci()
         }
     }
 
-    sti();
-
     ksuccess("AHCI initialized");
 }
 
@@ -399,7 +401,7 @@ int ahci_init_device(struct hba_port *port)
     wait_until(!(port->regs[HBA_RPxTFD] & (HBA_PxTFD_BSY)));
 
     // 预备DMA接收缓存，用于存放HBA传回的数据
-    uint16_t *data_in = (uint16_t *)kalloc(512);
+    uint16_t *data_in = (uint16_t *)kalloc_aligned(512, PAGE_4K_SIZE);
 
     int slot = hba_prepare_cmd(port, &cmd_table, &cmd_header, data_in, 512);
 
@@ -502,14 +504,14 @@ done:
     ahci_register_ops(port);
     device_install(DEV_BLOCK, DEV_DISK, port, "AHCI DISK", 0, NULL, ahci_read, ahci_write);
 
-    kfree(data_in);
-    kfree(cmd_table);
+    kfree_aligned(data_in);
+    deallocate_frame(virt_2_phy(cmd_table));
 
     return 1;
 
 fail:
-    kfree(data_in);
-    kfree(cmd_table);
+    kfree_aligned(data_in);
+    deallocate_frame(virt_2_phy(cmd_table));
 
     return 0;
 }
@@ -517,7 +519,7 @@ fail:
 int ahci_identify_device(struct hba_port *port)
 {
     // 用于重新识别设备（比如在热插拔的情况下）
-    kfree(port->device);
+    kfree_aligned(port->device);
     return ahci_init_device(port);
 }
 
@@ -628,12 +630,12 @@ int hba_prepare_cmd(struct hba_port *port,
 
     // 构建命令头（Command Header）和命令表（Command Table）
     struct hba_cmdh *cmd_header = &port->cmdlst[slot];
-    struct hba_cmdt *cmd_table = (struct hba_cmdt *)kalloc(sizeof(struct hba_cmdt));
+    struct hba_cmdt *cmd_table = (struct hba_cmdt *)phy_2_virt(allocate_frame());
 
     memset(cmd_header, 0, sizeof(*cmd_header));
 
     // 将命令表挂到命令头上
-    cmd_header->cmd_table_base = physical_mapping((uint64_t)cmd_table);
+    cmd_header->cmd_table_base = virt_2_phy((uint64_t)cmd_table);
     cmd_header->options =
         HBA_CMDH_FIS_LEN(sizeof(struct sata_reg_fis)) | HBA_CMDH_CLR_BUSY;
 
@@ -641,7 +643,7 @@ int hba_prepare_cmd(struct hba_port *port,
     {
         cmd_header->prdt_len = 1;
         cmd_table->entries[0] =
-            (struct hba_prdte){.data_base = physical_mapping((uint64_t)buffer),
+            (struct hba_prdte){.data_base = virt_2_phy((uint64_t)buffer),
                                .byte_count = size - 1};
     }
 

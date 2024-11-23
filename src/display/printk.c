@@ -24,8 +24,6 @@ struct position
 
     unsigned int *FB_addr;
     unsigned long FB_length;
-
-    spinlock_t spinlock;
 } pos;
 
 struct limine_framebuffer *framebuffer = NULL;
@@ -472,6 +470,9 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
     int line = 0;
     va_list args;
 
+    cli();
+    spin_lock(&global_printk_lock);
+
     if (use_terminal)
     {
         buf[0] = '\0';
@@ -487,14 +488,14 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         strcat(buf, "\033[0m");
 
         terminal_print(buf);
+        spin_unlock(&global_printk_lock);
+        sti();
         return i;
     }
 
     va_start(args, fmt);
     i = vsprintf(buf, fmt, args);
     va_end(args);
-
-    cli();
 
     for (count = 0; count < i || line; count++)
     {
@@ -548,6 +549,7 @@ int color_printk(unsigned int FRcolor, unsigned int BKcolor, const char *fmt, ..
         }
     }
 
+    spin_unlock(&global_printk_lock);
     sti();
 
     return i;

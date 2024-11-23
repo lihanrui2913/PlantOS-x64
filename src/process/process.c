@@ -6,6 +6,7 @@
 #include <glib.h>
 #include <mm/memory.h>
 #include <syscall/syscall.h>
+#include <spinlock.h>
 
 #include "elf.h"
 
@@ -43,6 +44,7 @@ extern struct process_control_block initial_process =
     {
         .state = PROC_UNINTERRUPTIBLE,
         .flags = PF_KTHREAD,
+        .preempt_count = 0,
         .signal = 0,
         .cpu_id = 0,
         .mm = &initial_mm,
@@ -111,9 +113,9 @@ void process_exit_thread(struct process_control_block *pcb);
 void __switch_to(struct process_control_block *prev, struct process_control_block *next)
 {
     initial_tss[proc_current_cpu_id].rsp0 = next->thread->rbp;
-    // kdebug("next_rsp = %#018lx   ", next->thread->rsp);
-    set_tss64((uint32_t *)&initial_tss[proc_current_cpu_id], initial_tss[0].rsp0, initial_tss[0].rsp1, initial_tss[0].rsp2, initial_tss[0].ist1,
-              initial_tss[0].ist2, initial_tss[0].ist3, initial_tss[0].ist4, initial_tss[0].ist5, initial_tss[0].ist6, initial_tss[0].ist7);
+
+    set_tss64((uint32_t *)&initial_tss[proc_current_cpu_id], initial_tss[proc_current_cpu_id].rsp0, initial_tss[proc_current_cpu_id].rsp1, initial_tss[proc_current_cpu_id].rsp2, initial_tss[proc_current_cpu_id].ist1,
+              initial_tss[proc_current_cpu_id].ist2, initial_tss[proc_current_cpu_id].ist3, initial_tss[proc_current_cpu_id].ist4, initial_tss[proc_current_cpu_id].ist5, initial_tss[proc_current_cpu_id].ist6, initial_tss[proc_current_cpu_id].ist7);
 
     __asm__ __volatile__("movq	%%fs,	%0 \n\t"
                          : "=a"(prev->thread->fs));
@@ -270,10 +272,6 @@ static int process_load_elf_file(struct pt_regs *regs, char *path)
     regs->rsp = current_pcb->mm->stack_start;
     regs->rbp = current_pcb->mm->stack_start;
 
-    vmm_mmap((uint64_t)current_pcb->mm->pgd, true, current_pcb->mm->stack_start - PAGE_4K_SIZE, allocate_frame(), PAGE_4K_SIZE, PAGE_U_S | PAGE_R_W | PAGE_PRESENT, true, true);
-    // 清空栈空间
-    memset((void *)(current_pcb->mm->stack_start - PAGE_4K_SIZE), 0, PAGE_4K_SIZE);
-
 load_elf_failed:;
     if (buf != NULL)
         kfree(buf);
@@ -289,8 +287,7 @@ load_elf_failed:;
  * @param envp 环境变量
  * @return uint64_t 错误码
  */
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+
 uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 {
     // 当前进程正在与父进程共享地址空间，需要创建
@@ -383,7 +380,6 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
 
     return 0;
 }
-#pragma GCC pop_options
 
 /**
  * @brief 内核init进程
@@ -391,25 +387,22 @@ uint64_t do_execve(struct pt_regs *regs, char *path, char *argv[], char *envp[])
  * @param arg
  * @return uint64_t 参数
  */
-#pragma GCC push_options
-#pragma GCC optimize("O0")
 uint64_t initial_kernel_thread(uint64_t arg)
 {
-    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx, cpu_id = %d\n", arg, proc_current_cpu_id);
+    color_printk(BLUE, BLACK, "initial kernel thread is running! arg = %#018lx\n", arg);
 
     init_device();
     init_pci();
     init_ahci();
 
+    init_ps2keyboard();
+
     init_fs();
     init_fat32();
-
-    init_ps2keyboard();
 
     // 准备切换到用户态
     struct pt_regs *regs;
 
-    // 若在后面这段代码中触发中断，return时会导致段选择子错误，从而触发#GP，因此这里需要cli
     cli();
     current_pcb->thread->rip = (uint64_t)ret_from_system_call;
     current_pcb->thread->rsp = (uint64_t)current_pcb + STACK_SIZE - sizeof(struct pt_regs);
@@ -431,7 +424,6 @@ uint64_t initial_kernel_thread(uint64_t arg)
 
     return 1;
 }
-#pragma GCC pop_options
 
 /**
  * @brief 当子进程退出后向父进程发送通知
@@ -515,14 +507,13 @@ void init_process()
 {
     kinfo("Initializing process...");
 
-    uint64_t sp = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE);
+    uint64_t sp = (uint64_t)kalloc_aligned(STACK_SIZE, STACK_SIZE) + STACK_SIZE;
     initial_thread.rbp = sp;
     initial_thread.rsp = sp;
     initial_process.state = PROC_RUNNING;
     initial_process.cpu_id = 0;
-    initial_process.virtual_runtime = (1UL << 60);
+    initial_process.virtual_runtime = 0;
     list_init(&initial_process.list);
-    current_pcb->virtual_runtime = (1UL << 60);
     initial_mm.pgd = (pml4t_t *)get_cr3();
     initial_mm.brk_end = initial_process.addr_limit;
     initial_tss[0].rsp0 = initial_thread.rbp;

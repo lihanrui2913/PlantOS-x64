@@ -41,7 +41,7 @@
 #define HBA_PxTFD_BSY (1 << 7)
 #define HBA_PxTFD_DRQ (1 << 3)
 
-#define HBA_RGHC_ahci_ENABLE (1 << 31)
+#define HBA_RGHC_AHCI_ENABLE (1 << 31)
 #define HBA_RGHC_INTR_ENABLE (1 << 1)
 #define HBA_RGHC_RESET 1
 
